@@ -164,7 +164,8 @@ function Part({ part, dense, defaultMaterial, center, view, seleccionId, hoverId
         },
       }
     : {};
-  const showLabel = selectable && part.labelAt !== undefined && etiquetas && (selected || !seleccionId || hoverId === part.id);
+  const revealed = !part.labelOnFocus || view.capasOcultas.length > 0 || view.explode > 0.3;
+  const showLabel = selectable && part.labelAt !== undefined && etiquetas && (selected || hoverId === part.id || (!seleccionId && revealed));
   const lead = anchor && showLabel && Math.hypot(label[0] - anchor[0], label[1] - anchor[1], label[2] - anchor[2]) > 0.35;
   return (
     <group ref={group} userData={{ partId: part.id }} {...handlers}>

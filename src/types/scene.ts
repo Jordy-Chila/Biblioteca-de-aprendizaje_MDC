@@ -63,6 +63,8 @@ export interface PartDef {
   selectable?: boolean;
   /** Posición de la etiqueta relativa al modelo. */
   labelAt?: V3;
+  /** Etiqueta visible solo al pasar el ratón, al seleccionarla o al ocultar capas / separar el modelo (estructuras internas). */
+  labelOnFocus?: boolean;
   /** Punto exacto de la pieza al que apunta la línea de la etiqueta (si falta, se calcula sobre la superficie). */
   anchorAt?: V3;
   anim?: AnimSpec;

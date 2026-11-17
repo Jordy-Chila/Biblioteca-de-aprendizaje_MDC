@@ -24,10 +24,12 @@ function fitView(model: ModelDef, scene: THREE.Scene, camera: THREE.PerspectiveC
   if (!root) return null;
   const box = new THREE.Box3().setFromObject(root);
   if (box.isEmpty()) return null;
+  // incluir las etiquetas (con un margen para su texto) para que ninguna quede fuera de la pantalla
+  for (const p of model.parts) if (p.labelAt && p.selectable !== false) box.expandByPoint(new THREE.Vector3(p.labelAt[0] * 1.08, p.labelAt[1] + 0.15, p.labelAt[2]));
   const sphere = box.getBoundingSphere(new THREE.Sphere());
   const fovV = THREE.MathUtils.degToRad(camera.fov);
   const fovH = 2 * Math.atan(Math.tan(fovV / 2) * camera.aspect);
-  const dist = (sphere.radius / Math.sin(Math.min(fovV, fovH) / 2)) * 0.92;
+  const dist = (sphere.radius / Math.sin(Math.min(fovV, fovH) / 2)) * 0.86;
   const dir = new THREE.Vector3(...(from ?? model.camera.position)).sub(new THREE.Vector3(...model.camera.target)).normalize();
   const c = sphere.center;
   return { position: [c.x + dir.x * dist, c.y + dir.y * dist, c.z + dir.z * dist], target: [c.x, c.y, c.z], dist };

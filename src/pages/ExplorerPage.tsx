@@ -15,7 +15,6 @@ import { partKey } from '../modules/3d-viewer/partKey';
 import { TopicNav } from '../modules/visual-engine/TopicNav';
 import { ConceptSearch } from '../modules/visual-engine/ConceptSearch';
 import { AfirmacionView } from '../components/AfirmacionView';
-import { ReferenceCard } from '../components/ReferenceCard';
 import { Empty, IconButton, cx } from '../components/ui';
 import type { PartDef } from '../types/scene';
 
@@ -74,7 +73,10 @@ export function ExplorerPage() {
   };
 
   const temaIds = temaId && temaId !== DOC_TOPIC ? subtree(temaId, plan.temas) : null;
-  const alertas = temaIds ? plan.alertas.filter((a) => plan.temas.some((t) => temaIds.has(t.id) && a.blockId && t.blockIds.includes(a.blockId))) : [];
+  const resumenIds = new Set(tema?.resumen.map((r) => r.blockId));
+  const vistas = new Set<string>();
+  // alertas del tema sin repetir el resumen ni entre sí
+  const alertas = (temaIds ? plan.alertas.filter((a) => plan.temas.some((t) => temaIds.has(t.id) && a.blockId && t.blockIds.includes(a.blockId))) : []).filter((a) => !resumenIds.has(a.blockId) && !vistas.has(a.texto) && Boolean(vistas.add(a.texto)));
   const dim = Boolean(selPart);
 
   return (
@@ -136,7 +138,7 @@ export function ExplorerPage() {
                 <ChevronDown className={cx('size-4 text-mist-400 transition', resumenOpen && 'rotate-180')} />
               </button>
               {resumenOpen && (
-                <div className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1">
+                <div className="mt-2 max-h-[calc(100vh-17rem)] space-y-2 overflow-y-auto pr-1">
                   {tema.resumen.map((a, i) => (
                     <AfirmacionView key={i} a={a} compact hideQuote />
                   ))}
@@ -148,7 +150,6 @@ export function ExplorerPage() {
                       <AfirmacionView a={a} compact hideQuote />
                     </div>
                   ))}
-                  {model?.wiki && <ReferenceCard title={model.wiki} compact showExtract={false} />}
                   {model && <p className="text-[11px] italic text-mist-400">{model.nota}</p>}
                 </div>
               )}
