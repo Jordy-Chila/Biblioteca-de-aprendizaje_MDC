@@ -63,12 +63,13 @@ export function buildLocalQuiz(plan: StudyPlan, temaId: string | undefined, coun
     const kind = out.length % 3;
     if (kind !== 1 && others.length >= 3) {
       const opciones = shuffle([c.nombre, ...others.slice(0, 3).map((o) => o.nombre)], r);
-      out.push({ tipo: 'opcion-multiple', pregunta: `¿A qué concepto corresponde esta descripción?\n«${nombreEn(def, c)}»`, opciones, correcta: opciones.indexOf(c.nombre), respuestaModelo: { ...def, texto: `${c.nombre}: ${def.texto}` } });
+      out.push({ conceptoId: c.id, tipo: 'opcion-multiple', pregunta: `¿A qué concepto corresponde esta descripción?\n«${nombreEn(def, c)}»`, opciones, correcta: opciones.indexOf(c.nombre), respuestaModelo: { ...def, texto: `${c.nombre}: ${def.texto}` } });
     } else if (others.length >= 1) {
       const verdadero = r() < 0.5;
       const other = others[0];
       const shown = verdadero ? def : definitionText(other)!;
       out.push({
+        conceptoId: c.id,
         tipo: 'verdadero-falso',
         pregunta: `Verdadero o falso: «${c.nombre}» se describe como: ${shown.texto}`,
         opciones: ['Verdadero', 'Falso'],

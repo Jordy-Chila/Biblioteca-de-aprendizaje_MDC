@@ -62,8 +62,8 @@ export const utero: CatalogEntry = {
   titulo: 'Útero gestante',
   tipo: 'modelo',
   materias: ['Medicina y anatomía', 'Biología'],
-  palabrasClave: ['utero', 'uterino', 'uterina', 'miometrio', 'endometrio', 'perimetrio', 'cervix', 'cuello uterino', 'placenta', 'feto', 'fetal', 'cordon umbilical', 'liquido amniotico', 'amnios', 'corion', 'membranas ovulares', 'vagina', 'embarazo', 'gestacion', 'saco amniotico', 'decidua'],
-  requiereAlguna: ['utero', 'uterino', 'uterina', 'placenta', 'feto', 'embarazo', 'gestacion'],
+  palabrasClave: ['utero', 'uterino', 'uterina', 'miometrio', 'endometrio', 'perimetrio', 'cervix', 'cuello uterino', 'placenta', 'feto', 'fetal', 'cordon umbilical', 'liquido amniotico', 'amnios', 'corion', 'membranas ovulares', 'vagina', 'embarazo', 'gestacion', 'saco amniotico', 'decidua', 'presentacion', 'cefalica', 'podalica', 'situacion fetal', 'actitud fetal', 'occipucio'],
+  requiereAlguna: ['utero', 'uterino', 'uterina', 'placenta', 'feto', 'fetal', 'embarazo', 'gestacion'],
   build: () =>
     staticModel({
       id: 'anatomia.utero',

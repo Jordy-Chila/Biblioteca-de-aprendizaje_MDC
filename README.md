@@ -23,6 +23,13 @@ npm run build      # genera dist/
 
 `vite.config.ts` usa `base: './'`, así que funciona en `https://<usuario>.github.io/<cualquier-repo>/` sin cambios.
 
+## Estudio con 3D
+
+- **Reto 3D** (primera pestaña de Estudio, o botón «Ponte a prueba» en el explorador): la app nombra una estructura y hay que tocarla en el modelo, sin etiquetas. Verde = acierto, rojo = fallo y se ilumina la correcta; cada respuesta muestra lo que dice el documento. Pistas (medio punto) y puntuación de la sesión.
+- **Flashcards**: al voltear una tarjeta cuyo concepto tiene modelo 3D, aparece debajo el modelo con la estructura resaltada.
+- **Cuestionarios**: en las respuestas sobre estructuras, «Ver en 3D» muestra la pieza sin salir del cuestionario.
+- **Realismo**: textura procedural de tejido y hueso (microrrelieve), materiales físicos, iluminación de estudio y viñeta.
+
 ## Teléfonos (Android / iOS)
 
 En pantallas de menos de 768 px la interfaz cambia a una versión móvil: barra de navegación inferior (Inicio, Explorar 3D, Estudio, Tutor), temas y resumen en hojas que se deslizan desde abajo, ficha de la estructura como hoja inferior que se cierra arrastrándola, barra de herramientas en una sola fila y gestos táctiles (arrastrar para girar, pellizcar para acercar). Respeta las zonas seguras (muesca, barra de inicio) y se puede añadir a la pantalla de inicio («Añadir a pantalla de inicio» en Safari o Chrome).
@@ -62,6 +69,9 @@ src/
 
 - **Modelos de dominio** (procedurales, con piezas nombradas y alias para enlazarlas con el texto): cerebro, corazón, pelvis y canal del parto, útero gestante, célula eucariota, ADN, átomo, moléculas (H₂O, CO₂, CH₄, NH₃, O₂, N₂, HCl, NaCl, etanol, H₂), fuerzas en plano inclinado, circuito eléctrico, capas de la Tierra, sistema solar, componentes de una computadora, redes, cuerpos geométricos y superficies.
 - **Generadores para cualquier materia**: proceso paso a paso con reproducción, línea de tiempo, comparación, mapa de conceptos y estructura del documento.
+- **Cada tema tiene su propio enfoque**: el modelo se centra en las estructuras que menciona ese tema (resaltadas y etiquetadas); el resto queda como contexto translúcido y la cámara encuadra solo lo relevante. Un modelo no se repite en un tema que solo menciona el órgano de pasada, ni en temas de repaso o bibliografía.
+- **Subtemas secuenciales** (p. ej. los períodos del parto): una vista del modelo por subtema, adaptada a su aspecto (dilatación → cuello uterino; alumbramiento → placenta y membranas). Solo esos subtemas aparecen en la barra lateral.
+- **Temas sin modelo 3D**: una sola visualización que los engloba (proceso, tabla en bloques, línea de tiempo o mapa de conceptos).
 - Un modelo de dominio solo se usa si el tema supera un umbral de palabras clave (y contiene alguna palabra imprescindible). Si no, se usa una alternativa genérica: nunca se fuerza un modelo incorrecto.
 
 - **Etiquetas con línea guía**: cada etiqueta señala con una línea y un punto la zona exacta de su estructura (en las capas, sobre la cara del corte). Hacer clic en el nombre abre su ficha.

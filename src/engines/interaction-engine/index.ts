@@ -135,6 +135,22 @@ export function resolvePartInfo(part: PartDef, model: ModelDef, plan: StudyPlan,
       nombres: [part.nombre],
     };
   }
+  if (ref.type === 'fila') {
+    const c = plan.comparaciones.find((x) => x.id === ref.comparacionId);
+    const fila = c?.filas[ref.index] ?? [];
+    const concepto = conceptForPart({ nombre: fila[0] ?? part.nombre }, plan);
+    return {
+      titulo: fila[0] ?? part.nombre,
+      subtitulo: c ? `${c.columnas[0]} · ${ref.index + 1} de ${c.filas.length}` : undefined,
+      concepto,
+      definiciones: fila.slice(1).map((t, i) => ({ ...fromBlock(c?.columnas[i + 1] ? `${c.columnas[i + 1]}: ${t}` : t, c!.blockId, t), verificada: true })),
+      fichas: concepto?.fichas ?? [],
+      relacionados: related(concepto),
+      menciones: [],
+      sinMenciones: false,
+      nombres: [fila[0] ?? part.nombre],
+    };
+  }
   if (ref.type === 'tema') {
     const t = plan.temas.find((x) => x.id === ref.id);
     return { titulo: t?.titulo ?? part.nombre, subtitulo: 'Tema', definiciones: t?.resumen ?? [], fichas: [], relacionados: [], menciones: [], sinMenciones: false, nombres: [part.nombre] };

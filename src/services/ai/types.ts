@@ -34,6 +34,8 @@ export interface GeneratedQuestion {
   opciones?: string[];
   correcta?: number;
   respuestaModelo: Afirmacion;
+  /** Concepto evaluado (para mostrarlo en 3D). */
+  conceptoId?: string;
   explicacion?: string;
 }
 

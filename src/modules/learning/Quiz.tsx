@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { CheckCircle2, CircleX, RefreshCcw, Sparkles, Timer, Trophy, CircleHelp } from 'lucide-react';
+import { Box, CheckCircle2, CircleX, RefreshCcw, Sparkles, Timer, Trophy, CircleHelp } from 'lucide-react';
 import type { DocumentModel } from '../../types/document';
 import type { StudyPlan } from '../../types/plan';
 import type { GeneratedQuestion, OpenGrade } from '../../services/ai/types';
 import { buildLocalQuiz, gradeOpenLocal } from '../../engines/education-engine';
 import { useAI } from '../../stores/ai';
 import { AfirmacionView } from '../../components/AfirmacionView';
+import { Structure3D, useStructure } from './Structure3D';
 import { Badge, Button, Empty, Progress, cx } from '../../components/ui';
 import { iaNombre } from '../../stores/ai';
 
@@ -183,11 +184,27 @@ export function Quiz({ plan, doc, temaId, mode }: { plan: StudyPlan; doc: Docume
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-mist-400">Respuesta</p>
                 <AfirmacionView a={q.respuestaModelo} compact />
                 {q.explicacion && <p className="mt-2 text-[13px] text-mist-300">{q.explicacion}</p>}
+                <VerEn3D conceptoId={q.conceptoId} plan={plan} doc={doc} />
               </div>
             )}
           </article>
         );
       })}
+    </div>
+  );
+}
+
+/** Si la pregunta trata de una estructura con modelo 3D, permite verla resaltada sin salir del cuestionario. */
+function VerEn3D({ conceptoId, plan, doc }: { conceptoId?: string; plan: StudyPlan; doc: DocumentModel }) {
+  const s = useStructure(conceptoId, plan, doc);
+  const [open, setOpen] = useState(false);
+  if (!s?.hit) return null;
+  return (
+    <div className="mt-3 space-y-2">
+      <Button size="sm" variant="outline" icon={<Box className="size-3.5 text-accent" />} onClick={() => setOpen((o) => !o)}>
+        {open ? 'Ocultar el modelo 3D' : `Ver «${s.hit.part.nombre}» en 3D`}
+      </Button>
+      {open && <Structure3D conceptoId={conceptoId} plan={plan} doc={doc} height="h-56" />}
     </div>
   );
 }

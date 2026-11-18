@@ -70,6 +70,8 @@ export function extractConcepts(doc: DocumentModel, temas: Tema[]): { conceptos:
       const [header, ...rows] = b.rows;
       if (header.length === 2 && DEF_HEADER.test(header[1])) {
         for (const r of rows) if (r[0] && r[1]) add(qualify(header[0], r[0]), r[1], r[1], b, `${header[0]} ${headingText(b)}`);
+        // las tablas de clasificación también se visualizan como comparación
+        if (/clasificaci|tipo|categor|etapa|fase|grado|estadio/i.test(header[0])) comparaciones.push({ id: `cmp-${b.id}`, temaId: topicOfBlock(b.id, temas), columnas: header, filas: rows, blockId: b.id });
       } else if (header.length === 3 && DEF_HEADER.test(header[2]) && !DEF_HEADER.test(header[1])) {
         // Letra | Parámetro | Qué evalúa → concepto = 2.ª columna
         for (const r of rows) if (r[1] && r[2]) add(r[1], r[2], r[2], b, `${header[1]} ${headingText(b)}`);

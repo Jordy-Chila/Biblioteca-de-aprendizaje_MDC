@@ -8,5 +8,6 @@ export function partKey(p: PartDef, model: ModelDef): string {
   if (r.type === 'paso') return `p:${r.procesoId}:${r.index}`;
   if (r.type === 'evento') return `e:${r.id}`;
   if (r.type === 'tema') return `t:${r.id}`;
+  if (r.type === 'fila') return `f:${r.comparacionId}:${r.index}`;
   return `k:${r.comparacionId}:${r.index}`;
 }

@@ -62,11 +62,49 @@ export function planScenes(doc: DocumentModel, plan: StudyPlan): Escena[] {
   for (const tema of roots) {
     const sub = subtree(tema.id, plan.temas);
     const text = topicText(doc, plan, tema);
-    matchDomainModels(text, { plan, doc, tema }).forEach((m) => add(tema.id, m.entry, m.entry.titulo, m.score, m.params));
-    plan.procesos.filter((p) => sub.has(p.temaId)).forEach((p) => add(tema.id, proceso, `Proceso: ${p.nombre.replace(/^\d+(\.\d+)*\.?\s*/, '')}`, 0, { procesoId: p.id }));
-    plan.comparaciones.filter((c) => sub.has(c.temaId)).slice(0, 4).forEach((c) => add(tema.id, comparacion, `Comparación: ${c.columnas.slice(0, 2).join(' / ')}`, 0, { comparacionId: c.id }));
-    if (plan.eventos.filter((e) => sub.has(e.temaId)).length >= 2) add(tema.id, lineaTiempo, 'Línea de tiempo', 0);
-    if (plan.conceptos.some((c) => sub.has(c.temaId))) add(tema.id, mapaConceptos, 'Mapa de conceptos', 0);
+    const titulo = normalize(tema.titulo);
+    // temas de repaso, glosario o bibliografía: no repiten modelos, usan su mapa de conceptos
+    const meta = /repaso|resumen|conceptos que|glosario|preguntas|bibliograf|referencias|evaluaci|autoevaluaci|examen/.test(titulo);
+    const queue: { entry: CatalogEntry; titulo: string; score: number; params: Record<string, unknown>; prioridad: number }[] = [];
+
+    // 1) Modelos 3D: solo si el tema habla de sus estructuras, y centrados en ellas
+    const hijos = plan.temas.filter((t) => t.padreId === tema.id);
+    const candidatos = meta ? [] : matchDomainModels(text, { plan, doc, tema });
+    for (const m of candidatos) {
+      const focus = focusParts(m.entry, m.params, text, { plan, doc, tema });
+      const enTitulo = m.entry.palabrasClave.some((k) => containsWord(titulo, normalize(k))) || focus.nombres.some((n) => containsWord(titulo, normalize(n)));
+      // Subtemas que tratan otro aspecto de las mismas estructuras: una vista del modelo por subtema
+      const aspectos = hijos
+        .map((h) => ({ h, f: focusParts(m.entry, m.params, topicText(doc, plan, h), { plan, doc, tema: h }) }))
+        // un aspecto cuenta si trata al menos dos estructuras o nombra una en su título
+        .filter((x) => x.f.ids.length >= 2 || (x.f.ids.length >= 1 && x.f.nombres.some((n) => containsWord(normalize(x.h.titulo), normalize(n)))));
+      const secuencial = aspectos.length >= 2;
+      if (focus.ids.length < 2 && !enTitulo && !secuencial) continue; // menciona el órgano de pasada: no aporta repetir el modelo
+      const parcial = focus.ids.length >= 1 && focus.ids.length < focus.total;
+      const prioridad = enTitulo ? 0 : focus.ids.length >= 3 || secuencial ? 2 : 3;
+      queue.push({
+        entry: m.entry,
+        titulo: secuencial ? `${m.entry.titulo} · visión general` : parcial ? `${m.entry.titulo} · ${resumenNombres(focus.nombres)}` : m.entry.titulo,
+        score: m.score,
+        params: { ...(m.params ?? {}), ...(parcial ? { focus: focus.ids } : {}) },
+        prioridad,
+      });
+      if (secuencial)
+        aspectos.forEach(({ h, f }, k) =>
+          queue.push({ entry: m.entry, titulo: h.titulo, score: m.score, params: { ...(m.params ?? {}), focus: f.ids, subtemaId: h.id }, prioridad: prioridad + 0.01 * (k + 1) }),
+        );
+    }
+    const tieneModelo = queue.length > 0;
+    // 2) Representaciones propias del tema
+    const propias: typeof queue = [];
+    plan.procesos.filter((p) => sub.has(p.temaId)).forEach((p) => propias.push({ entry: proceso, titulo: `Proceso: ${p.nombre.replace(/^\d+(\.\d+)*\.?\s*/, '')}`, score: 0, params: { procesoId: p.id }, prioridad: 1 }));
+    plan.comparaciones.filter((c) => sub.has(c.temaId)).slice(0, 4).forEach((c) => propias.push({ entry: comparacion, titulo: `Comparación: ${c.columnas.slice(0, 2).join(' / ')}`, score: 0, params: { comparacionId: c.id }, prioridad: 1 }));
+    if (plan.eventos.filter((e) => sub.has(e.temaId)).length >= 2) propias.push({ entry: lineaTiempo, titulo: 'Línea de tiempo', score: 0, params: {}, prioridad: 1 });
+    if (plan.conceptos.some((c) => sub.has(c.temaId))) propias.push({ entry: mapaConceptos, titulo: 'Mapa de conceptos', score: 0, params: {}, prioridad: 4 });
+    // Sin modelo 3D: una sola visualización que englobe el tema (la más específica)
+    if (tieneModelo) queue.push(...propias);
+    else if (propias.length) queue.push(propias.sort((a, b) => a.prioridad - b.prioridad)[0]);
+    queue.sort((a, b) => a.prioridad - b.prioridad).forEach((q) => add(tema.id, q.entry, q.titulo, q.score, q.params));
     if (!escenas.some((e) => e.temaId === tema.id)) add(tema.id, jerarquia, 'Estructura del tema', 0);
   }
   return escenas;
@@ -78,9 +116,41 @@ export function buildScene(escena: Escena, plan: StudyPlan, doc: DocumentModel):
   if (!entry) return null;
   const tema = plan.temas.find((t) => t.id === escena.temaId);
   try {
-    return entry.build({ plan, doc, tema, escena });
+    const model = entry.build({ plan, doc, tema, escena });
+    const focus = Array.isArray(escena.params.focus) ? (escena.params.focus as string[]) : undefined;
+    return model && focus?.length ? applyFocus(model, focus) : model;
   } catch (e) {
     console.error('Error al construir la escena', escena.sceneTypeId, e);
     return null;
   }
+}
+
+/** Estructuras del modelo que menciona el texto del tema (por nombre o alias). */
+export function focusParts(entry: CatalogEntry, params: Record<string, unknown> | undefined, text: string, ctx: { plan: StudyPlan; doc: DocumentModel; tema?: Tema }): { ids: string[]; nombres: string[]; total: number } {
+  const model = entry.build({ ...ctx, escena: { id: 'tmp', temaId: ctx.tema?.id ?? '', sceneTypeId: entry.id, titulo: '', confianza: 0, params: params ?? {} } });
+  if (!model) return { ids: [], nombres: [], total: 0 };
+  const seen = new Set<string>();
+  const partes = model.parts.filter((p) => p.selectable !== false && p.labelAt && !seen.has(p.nombre) && seen.add(p.nombre));
+  const hit = partes.filter((p) => [p.nombre.replace(/\s*\(.*?\)\s*/g, ' ').trim(), ...(p.alias ?? [])].some((a) => a.length >= 4 && containsWord(text, normalize(a))));
+  return { ids: hit.map((p) => p.id), nombres: hit.map((p) => p.nombre.replace(/\s*\(.*?\)\s*/g, ' ').trim()), total: partes.length };
+}
+
+function resumenNombres(n: string[]): string {
+  return n.length <= 2 ? n.join(' y ') : `${n.slice(0, 2).join(', ')} +${n.length - 2}`;
+}
+
+/**
+ * Centra un modelo en las estructuras de un tema: esas conservan su aspecto y su etiqueta;
+ * el resto queda como contorno translúcido de contexto (sigue siendo seleccionable).
+ */
+export function applyFocus(model: ModelDef, focus: string[]): ModelDef {
+  const set = new Set(focus);
+  const nombresFoco = new Set(model.parts.filter((p) => set.has(p.id)).map((p) => p.nombre));
+  return {
+    ...model,
+    focusIds: focus,
+    parts: model.parts.map((p) =>
+      set.has(p.id) || nombresFoco.has(p.nombre) || p.selectable === false ? p : { ...p, opacity: Math.min(p.opacity ?? 1, 0.14), labelAt: undefined, anchorAt: undefined },
+    ),
+  };
 }

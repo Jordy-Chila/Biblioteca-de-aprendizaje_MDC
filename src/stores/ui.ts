@@ -8,6 +8,9 @@ interface UIState {
   tutorScope?: TutorScope;
   tutorDraft?: string;
   sidebarOpen: boolean;
+  /** Pestaña inicial de Estudio y modelo del Reto 3D (cuando se abre desde el explorador). */
+  studyTab?: string;
+  retoEscenaId?: string;
   toast?: { text: string; tone: 'ok' | 'error'; nonce: number };
   set(p: Partial<Omit<UIState, 'set' | 'notify' | 'openTutor'>>): void;
   notify(text: string, tone?: 'ok' | 'error'): void;

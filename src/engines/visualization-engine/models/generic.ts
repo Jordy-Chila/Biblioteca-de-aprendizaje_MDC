@@ -179,6 +179,36 @@ export const comparacion: CatalogEntry = {
   build: ({ plan, escena }) => {
     const c = plan.comparaciones.find((x) => x.id === escena.params.comparacionId);
     if (!c) return null;
+    // Tabla de clasificación (categoría → descripción): un bloque por categoría, en escalera
+    if (c.columnas.length === 2 && c.filas.length >= 3) {
+      const n = c.filas.length;
+      const gap = 1.25;
+      const pal = ['#22d3ee', '#38bdf8', '#818cf8', '#a78bfa', '#c084fc', '#f472b6', '#fb7185', '#fbbf24'];
+      const parts: PartDef[] = c.filas.map((f, i) => {
+        const x = i * gap - ((n - 1) * gap) / 2;
+        const h = 0.5 + i * 0.28;
+        return {
+          id: `fila-${i}`,
+          nombre: f[0],
+          color: pal[i % pal.length],
+          emissive: pal[i % pal.length],
+          material: 'plastico',
+          meshes: [m({ kind: 'box', size: [1.0, h, 0.7] }, [x, h / 2 - 0.9, 0])],
+          ref: { type: 'fila', comparacionId: c.id, index: i },
+          labelAt: [x, h - 0.45, 0.45],
+        };
+      });
+      parts.push({ id: 'base', nombre: c.columnas[0], color: '#1e293b', selectable: false, meshes: [m({ kind: 'box', size: [n * gap + 0.6, 0.08, 1.2] }, [0, -0.94, 0])] });
+      return {
+        id: `cmp-${c.id}`,
+        titulo: `${c.columnas[0]}: ${c.filas.map((f) => f[0]).slice(0, 3).join(', ')}${n > 3 ? '…' : ''}`,
+        tipo: 'comparacion',
+        parts,
+        pasos: parts.filter((p) => p.ref).map((p) => p.id),
+        camera: { position: [0, 2.2, 7.5], target: [0, 0, 0] },
+        nota: `Tabla «${c.columnas.join(' / ')}» del documento: un bloque por categoría. Toca uno para ver su descripción; ▶ las recorre en orden.`,
+      };
+    }
     const cols = c.columnas.length;
     const w = 2.4;
     const parts: PartDef[] = c.columnas.map((col, i) => {

@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, Environment, Lightformer, OrbitControls } from '@react-three/drei';
+import { EffectComposer, Vignette } from '@react-three/postprocessing';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { ModelDef, PartDef, V3 } from '../../types/scene';
 import { useViewer } from '../../stores/viewer';
@@ -12,6 +13,12 @@ interface Props {
   model: ModelDef;
   escenaId: string;
   seleccionId?: string;
+  /** Forzar etiquetas (p. ej. ocultas en el Reto 3D). */
+  labels?: boolean;
+  /** Oclusión ambiental y viñeta (se desactiva en teléfonos). */
+  effects?: boolean;
+  /** Color de resaltado de la selección (verde/rojo en el Reto 3D). */
+  highlight?: string;
   onSelect(part: PartDef): void;
   onDeselect(): void;
 }
@@ -21,26 +28,36 @@ const tmpTarget = new THREE.Vector3();
 const useThreeSize = { w: 0, h: 0 };
 
 /** Posición de cámara que encaja el modelo completo, en la dirección indicada (o la inicial del modelo). */
-function fitView(model: ModelDef, scene: THREE.Scene, camera: THREE.PerspectiveCamera, from?: V3): { position: V3; target: V3; dist: number } | null {
+function fitView(model: ModelDef, scene: THREE.Scene, camera: THREE.PerspectiveCamera, from?: V3, withLabels = true): { position: V3; target: V3; dist: number } | null {
   const root = scene.getObjectByName('model-root');
   if (!root) return null;
-  const box = new THREE.Box3().setFromObject(root);
+  // con foco: encuadrar solo las estructuras del tema
+  root.updateWorldMatrix(true, true);
+  const box = new THREE.Box3();
+  if (model.focusIds?.length) {
+    const ids = new Set(model.focusIds);
+    root.traverse((o) => {
+      if (o.userData?.partId && ids.has(o.userData.partId)) box.expandByObject(o);
+    });
+  }
+  if (box.isEmpty()) box.setFromObject(root);
   if (box.isEmpty()) return null;
   // incluir las etiquetas (con un margen para su texto) para que ninguna quede fuera de la pantalla
   const portrait = useThreeSize.h > 0 && useThreeSize.w / useThreeSize.h < 0.8;
   // en vertical (teléfono) las etiquetas laterales cuentan menos para que el modelo no quede diminuto
-  for (const p of model.parts) if (p.labelAt && p.selectable !== false) box.expandByPoint(new THREE.Vector3(p.labelAt[0] * (portrait ? 0.62 : 1.08), p.labelAt[1] + 0.15, p.labelAt[2] * (portrait ? 0.62 : 1)));
+  if (withLabels) for (const p of model.parts) if (p.labelAt && p.selectable !== false) box.expandByPoint(new THREE.Vector3(p.labelAt[0] * (portrait ? 0.62 : 1.08), p.labelAt[1] + 0.15, p.labelAt[2] * (portrait ? 0.62 : 1)));
   const sphere = box.getBoundingSphere(new THREE.Sphere());
   const fovV = THREE.MathUtils.degToRad(camera.fov);
   const aspect = useThreeSize.h > 0 ? useThreeSize.w / useThreeSize.h : camera.aspect;
   const fovH = 2 * Math.atan(Math.tan(fovV / 2) * aspect);
-  const dist = (sphere.radius / Math.sin(Math.min(fovV, fovH) / 2)) * 0.86;
+  // con foco se deja más margen para ver el contexto alrededor de las estructuras del tema
+  const dist = (sphere.radius / Math.sin(Math.min(fovV, fovH) / 2)) * (model.focusIds?.length ? 1.15 : 0.86);
   const dir = new THREE.Vector3(...(from ?? model.camera.position)).sub(new THREE.Vector3(...model.camera.target)).normalize();
   const c = sphere.center;
   return { position: [c.x + dir.x * dist, c.y + dir.y * dist, c.z + dir.z * dist], target: [c.x, c.y, c.z], dist };
 }
 
-function CameraRig({ model, escenaId }: { model: ModelDef; escenaId: string }) {
+function CameraRig({ model, escenaId, withLabels = true }: { model: ModelDef; escenaId: string; withLabels?: boolean }) {
   const { camera, controls, scene, size } = useThree() as unknown as { camera: THREE.PerspectiveCamera; controls: OrbitControlsImpl | null; scene: THREE.Scene; size: { width: number; height: number } };
   useThreeSize.w = size.width;
   useThreeSize.h = size.height;
@@ -71,7 +88,7 @@ function CameraRig({ model, escenaId }: { model: ModelDef; escenaId: string }) {
       flyTo(model.camera.position, model.camera.target, true);
       // Encajar el modelo completo en pantalla según el tamaño y la proporción del visor
       const raf = requestAnimationFrame(() => {
-        const fit = fitView(model, scene, camera);
+        const fit = fitView(model, scene, camera, undefined, withLabels);
         if (fit) {
           baseDist.current = fit.dist;
           flyTo(fit.position, fit.target, true);
@@ -102,7 +119,7 @@ function CameraRig({ model, escenaId }: { model: ModelDef; escenaId: string }) {
   useEffect(() => {
     if (!controls || useViewer.getState().view(escenaId).camera) return;
     const id = requestAnimationFrame(() => {
-      const fit = fitView(model, scene, camera);
+      const fit = fitView(model, scene, camera, undefined, withLabels);
       if (fit) {
         baseDist.current = fit.dist;
         flyTo(fit.position, fit.target, true);
@@ -123,12 +140,12 @@ function CameraRig({ model, escenaId }: { model: ModelDef; escenaId: string }) {
       flyTo([c[0] + dir.x * dist, c[1] + dir.y * dist, c[2] + dir.z * dist], c);
     } else {
       if (!cameraRequest.position) {
-        const fit = fitView(model, scene, camera);
+        const fit = fitView(model, scene, camera, undefined, withLabels);
         if (fit) flyTo(fit.position, fit.target);
         else flyTo(model.camera.position, model.camera.target);
       } else {
         // vista predefinida: misma dirección, distancia que encaja el modelo
-        const fit = fitView(model, scene, camera, cameraRequest.position);
+        const fit = fitView(model, scene, camera, cameraRequest.position, withLabels);
         flyTo(fit?.position ?? cameraRequest.position, fit?.target ?? cameraRequest.target ?? model.camera.target);
       }
     }
@@ -161,9 +178,11 @@ function CameraRig({ model, escenaId }: { model: ModelDef; escenaId: string }) {
   return null;
 }
 
-export function Viewer3D({ model, escenaId, seleccionId, onSelect, onDeselect }: Props) {
+export function Viewer3D({ model, escenaId, seleccionId, onSelect, onDeselect, labels, effects = true, highlight }: Props) {
   const view = useViewer((s) => s.views[escenaId]) ?? useViewer.getState().view(escenaId);
-  const etiquetas = useViewer((s) => s.etiquetas);
+  const etiquetasStore = useViewer((s) => s.etiquetas);
+  const etiquetas = labels ?? etiquetasStore;
+  const fx = effects && typeof window !== "undefined" && window.innerWidth >= 768;
   const animar = useViewer((s) => s.animar);
   const autoRotar = useViewer((s) => s.autoRotar);
   const minY = Math.min(...model.parts.flatMap((p) => p.meshes.map((m) => (m.position?.[1] ?? 0)))) - 1.4;
@@ -194,11 +213,16 @@ export function Viewer3D({ model, escenaId, seleccionId, onSelect, onDeselect }:
         <Lightformer intensity={0.6} position={[0, -4, 3]} rotation-x={-Math.PI / 2} scale={[8, 8, 1]} color="#fde2e4" />
       </Environment>
       <Suspense fallback={null}>
-        <ModelScene model={model} view={view} seleccionId={seleccionId} etiquetas={etiquetas} animar={animar} onSelect={onSelect} />
+        <ModelScene model={model} view={view} seleccionId={seleccionId} etiquetas={etiquetas} animar={animar} onSelect={onSelect} highlight={highlight} />
       </Suspense>
       <ContactShadows position={[0, minY, 0]} opacity={0.45} scale={18} blur={2.6} far={6} color="#000" />
       <OrbitControls makeDefault enableDamping dampingFactor={0.08} minDistance={1.2} maxDistance={60} autoRotate={autoRotar} autoRotateSpeed={0.8} />
-      <CameraRig model={model} escenaId={escenaId} />
+      <CameraRig model={model} escenaId={escenaId} withLabels={etiquetas} />
+      {fx && (
+        <EffectComposer multisampling={4}>
+          <Vignette eskil={false} offset={0.25} darkness={0.55} />
+        </EffectComposer>
+      )}
     </Canvas>
   );
 }

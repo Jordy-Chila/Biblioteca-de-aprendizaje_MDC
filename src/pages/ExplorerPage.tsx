@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, Box, ChevronDown, GitBranch, Info, ListTree, Network, Clock3, Columns3, PanelLeft, MessageCircleQuestion } from 'lucide-react';
+import { AlertTriangle, Target, Box, ChevronDown, GitBranch, Info, ListTree, Network, Clock3, Columns3, PanelLeft, MessageCircleQuestion } from 'lucide-react';
 import { useSession } from '../stores/session';
 import { useViewer } from '../stores/viewer';
 import { useUI } from '../stores/ui';
@@ -37,13 +37,15 @@ export function ExplorerPage() {
   // En el teléfono, elegir un tema cierra la hoja de temas
   useEffect(() => {
     if (isMobile) useUI.getState().set({ sidebarOpen: false });
-  }, [temaId, isMobile]);
+  }, [temaId, escenaId, isMobile]);
 
   const escenas = useMemo(() => plan?.escenas.filter((e) => e.temaId === temaId) ?? [], [plan, temaId]);
   const escena = escenas.find((e) => e.id === escenaId) ?? escenas[0];
   const model = useMemo(() => (escena && plan && doc ? buildScene(escena, plan, doc) : null), [escena, plan, doc]);
   const selPart = model && selection && selection.escenaId === escena?.id ? model.parts.find((p) => p.id === selection.partId) : undefined;
-  const tema = plan?.temas.find((t) => t.id === temaId);
+  // si la vista es un aspecto (subtema), el resumen corresponde a ese subtema
+  const subtemaId = typeof escena?.params.subtemaId === 'string' ? (escena.params.subtemaId as string) : undefined;
+  const tema = plan?.temas.find((t) => t.id === (subtemaId ?? temaId)) ?? plan?.temas.find((t) => t.id === temaId);
   const view = useViewer((s) => (escena ? s.views[escena.id] : undefined));
 
   // Reproducción automática de procesos / líneas de tiempo
@@ -141,6 +143,11 @@ export function ExplorerPage() {
               </IconButton>
             )}
             <ConceptSearch />
+            {escena && !escena.sceneTypeId.startsWith('generico.') && (
+              <button onClick={() => (useUI.getState().set({ studyTab: 'reto', retoEscenaId: escena.id }), useSession.getState().goto('study'))} className="glass inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl px-3 text-[13px] text-mist-200 hover:text-white" title="Reto 3D: toca la estructura que se nombra">
+                <Target className="size-4 text-amber-300" /> <span className="hidden sm:inline">Ponte a prueba</span>
+              </button>
+            )}
             <button onClick={() => useUI.getState().openTutor({ tipo: temaId && temaId !== DOC_TOPIC ? 'tema' : 'documento', titulo: tema?.titulo ?? plan.dominio.tema, temaId: temaId !== DOC_TOPIC ? temaId : undefined })} className="glass hidden h-10 items-center gap-2 rounded-2xl px-3 text-[13px] text-mist-200 hover:text-white sm:inline-flex">
               <MessageCircleQuestion className="size-4 text-purple-300" /> Tutor
             </button>

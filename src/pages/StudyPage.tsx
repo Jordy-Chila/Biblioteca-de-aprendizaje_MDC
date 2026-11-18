@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { BookA, Compass, Layers, ListChecks, NotebookText, Trophy, BookMarked } from 'lucide-react';
+import { BookA, Compass, Layers, ListChecks, NotebookText, Trophy, BookMarked, Target } from 'lucide-react';
+import { useUI } from '../stores/ui';
+import { Challenge3D } from '../modules/learning/Challenge3D';
 import { useSession } from '../stores/session';
 import { Tabs, Empty } from '../components/ui';
 import { Flashcards } from '../modules/learning/Flashcards';
 import { Quiz } from '../modules/learning/Quiz';
 import { Glossary, Guided, SourcesList, Summaries } from '../modules/learning/Reading';
 
-type Tab = 'guiado' | 'flashcards' | 'quiz' | 'evaluacion' | 'resumen' | 'glosario';
+type Tab = 'reto' | 'guiado' | 'flashcards' | 'quiz' | 'evaluacion' | 'resumen' | 'glosario';
 
 export function StudyPage() {
   const docId = useSession((s) => s.activeDocId);
@@ -16,7 +18,16 @@ export function StudyPage() {
   const doc = useSession((s) => (docId ? s.documents[docId] : undefined));
   const allMarcadores = useSession((s) => s.marcadores);
   const marcadores = allMarcadores.filter((m) => m.docId === docId);
-  const [tab, setTab] = useState<Tab>('guiado');
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = useUI.getState().studyTab as Tab | undefined;
+    useUI.getState().set({ studyTab: undefined });
+    return t ?? 'reto';
+  });
+  const [retoEscena] = useState(() => {
+    const e = useUI.getState().retoEscenaId;
+    useUI.getState().set({ retoEscenaId: undefined });
+    return e;
+  });
   const [temaId, setTemaId] = useState<string>('');
   if (!plan || !doc) return <Empty title="No hay ningún material abierto">Carga un documento en el inicio para generar actividades.</Empty>;
   const roots = plan.temas.filter((t) => t.nivel === 1);
@@ -56,6 +67,7 @@ export function StudyPage() {
           value={tab}
           onChange={setTab}
           items={[
+            { value: 'reto', label: 'Reto 3D', icon: <Target className="size-4" /> },
             { value: 'guiado', label: 'Aprendizaje guiado', icon: <Compass className="size-4" /> },
             { value: 'flashcards', label: 'Flashcards', icon: <Layers className="size-4" /> },
             { value: 'quiz', label: 'Cuestionario', icon: <ListChecks className="size-4" /> },
@@ -65,6 +77,7 @@ export function StudyPage() {
           ]}
         />
         <div>
+          {tab === 'reto' && <Challenge3D key={docId} plan={plan} doc={doc} initialEscenaId={retoEscena} />}
           {tab === 'guiado' && (
             <div className="space-y-6">
               <Guided plan={plan} />
@@ -94,7 +107,7 @@ export function StudyPage() {
               <SourcesList plan={plan} />
             </div>
           )}
-          {tab === 'flashcards' && <Flashcards key={`${docId}-${temaId}`} plan={plan} temaId={temaId || undefined} />}
+          {tab === 'flashcards' && <Flashcards key={`${docId}-${temaId}`} plan={plan} doc={doc} temaId={temaId || undefined} />}
           {tab === 'quiz' && <Quiz key={`q-${docId}-${temaId}`} plan={plan} doc={doc} temaId={temaId || undefined} mode="practica" />}
           {tab === 'evaluacion' && <Quiz key={`e-${docId}-${temaId}`} plan={plan} doc={doc} temaId={temaId || undefined} mode="evaluacion" />}
           {tab === 'resumen' && <Summaries plan={plan} doc={doc} />}

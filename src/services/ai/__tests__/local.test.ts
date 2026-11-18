@@ -79,3 +79,35 @@ test('no convierte la bibliografía ni párrafos ajenos en conceptos', async () 
   expect(plan.conceptos.find((c) => c.nombre === 'Fetales o neonatales')).toBeUndefined();
   expect(plan.conceptos.find((c) => c.nombre === 'Estrecho medio')).toBeDefined();
 });
+
+test('3D en el estudio: reto y estructuras de los conceptos', async () => {
+  const { loadParto } = await import('../../../test/fixtures');
+  const { challengeModels, findStructure } = await import('../../../engines/interaction-engine/structures');
+  const doc = await loadParto();
+  const plan = analyzeLocal(doc);
+  const retos = challengeModels(plan, doc).map((m) => m.model.id);
+  expect(retos).toEqual(expect.arrayContaining(['anatomia.utero', 'anatomia.pelvis']));
+  const mio = plan.conceptos.find((c) => c.nombre === 'Miometrio')!;
+  expect(findStructure(mio, plan, doc)?.part.id).toBe('miometrio');
+  const corion = plan.conceptos.find((c) => c.nombre === 'Corion')!;
+  expect(findStructure(corion, plan, doc)?.part.id).toBe('corion');
+});
+
+test('cada tema muestra su propio enfoque y los subtemas secuenciales adaptan el modelo', async () => {
+  const { loadParto } = await import('../../../test/fixtures');
+  const plan = analyzeLocal(await loadParto());
+  const tema = (n: string) => plan.temas.find((t) => t.nivel === 1 && t.titulo.startsWith(n))!;
+  const esc = (n: string) => plan.escenas.filter((e) => e.temaId === tema(n).id);
+  // períodos: visión general + un aspecto por período, cada uno con sus estructuras
+  const periodos = esc('5.');
+  const dil = periodos.find((e) => e.titulo === 'Primer período: dilatación')!;
+  expect(dil.params.focus).toContain('cervix');
+  expect(periodos.find((e) => e.titulo === 'Tercer período: alumbramiento')!.params.focus).toContain('placenta');
+  // fisiología: solo las capas de la pared
+  expect(esc('4.')[0].params.focus).toEqual(['perimetrio', 'miometrio', 'endometrio']);
+  // clasificación: primero su tabla; temas sin modelo: una sola vista
+  expect(esc('2.')[0].sceneTypeId).toBe('generico.comparacion');
+  expect(esc('8.')).toHaveLength(1);
+  // repaso: sin modelos repetidos
+  expect(esc('16.').some((e) => !e.sceneTypeId.startsWith('generico.'))).toBe(false);
+});

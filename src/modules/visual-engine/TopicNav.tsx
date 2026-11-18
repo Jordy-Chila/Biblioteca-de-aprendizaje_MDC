@@ -19,6 +19,7 @@ export function TopicNav() {
   const plan = useSession((s) => s.plans[docId]);
   const materials = useSession((s) => s.materials);
   const activeTema = useSession((s) => s.activeTemaId);
+  const activeEscena = useSession((s) => s.activeEscenaId);
   const vistos = useSession((s) => s.vistos[docId] ?? EMPTY_OBJ) as Record<string, true>;
   const visitados = useSession((s) => s.temasVisitados[docId] ?? EMPTY_OBJ) as Record<string, true>;
   const allMarcadores = useSession((s) => s.marcadores);
@@ -53,7 +54,8 @@ export function TopicNav() {
           <Network className="size-4 text-accent" /> Vista general del documento
         </button>
         {roots.map((t) => {
-          const subs = plan.temas.filter((x) => x.padreId === t.id);
+          // solo los subtemas con una vista propia del modelo (aspectos secuenciales del tema)
+          const subs = plan.escenas.filter((e) => e.temaId === t.id && typeof e.params.subtemaId === 'string').map((e) => ({ id: e.params.subtemaId as string, escenaId: e.id, titulo: e.titulo }));
           const p = topicProgress(plan, t, vistos);
           const active = activeTema === t.id;
           const hasAlert = plan.alertas.some((a) => a.blockId && subtree(t.id, plan.temas).size && plan.temas.filter((x) => subtree(t.id, plan.temas).has(x.id)).some((x) => x.blockIds.includes(a.blockId!)));
@@ -85,7 +87,7 @@ export function TopicNav() {
               {open[t.id] && (
                 <div className="ml-4 border-l border-white/8 pl-2">
                   {subs.map((s) => (
-                    <button key={s.id} onClick={() => openTema(t.id)} className="block w-full truncate rounded-lg px-2 py-1.5 text-left text-[12px] text-mist-400 hover:bg-white/5 hover:text-white">
+                    <button key={s.id} onClick={() => openTema(t.id, s.escenaId)} className={cx('block w-full truncate rounded-lg px-2 py-1.5 text-left text-[12px] hover:bg-white/5 hover:text-white', activeEscena === s.escenaId ? 'bg-accent/10 text-white' : 'text-mist-400')}>
                       {s.titulo}
                     </button>
                   ))}

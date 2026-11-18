@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, RotateCw, Shuffle, Check, X } from 'lucide-react';
 import type { StudyPlan } from '../../types/plan';
+import type { DocumentModel } from '../../types/document';
+import { Structure3D } from './Structure3D';
 import { buildFlashcards, rng } from '../../engines/education-engine';
 import { AfirmacionView } from '../../components/AfirmacionView';
 import { Button, Empty, Progress } from '../../components/ui';
 
-export function Flashcards({ plan, temaId }: { plan: StudyPlan; temaId?: string }) {
+export function Flashcards({ plan, doc, temaId }: { plan: StudyPlan; doc: DocumentModel; temaId?: string }) {
   const base = useMemo(() => buildFlashcards(plan, temaId), [plan, temaId]);
   const [order, setOrder] = useState<number[]>(() => base.map((_, i) => i));
   const [i, setI] = useState(0);
@@ -58,6 +60,7 @@ export function Flashcards({ plan, temaId }: { plan: StudyPlan; temaId?: string 
           </motion.button>
         </AnimatePresence>
       </div>
+      {flip && <Structure3D conceptoId={card.conceptoId} plan={plan} doc={doc} />}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
           <Button variant="soft" icon={<ChevronLeft className="size-4" />} onClick={() => go(-1)}>

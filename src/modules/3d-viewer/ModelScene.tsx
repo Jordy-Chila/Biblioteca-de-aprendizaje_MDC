@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+
+/** Color de resaltado de la selección (cian normal; verde/rojo en el Reto 3D). */
+const HighlightColor = createContext('#22d3ee');
 import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html, Line, Outlines } from '@react-three/drei';
 import type { MeshSpec, ModelDef, PartDef, V3 } from '../../types/scene';
 import { createMeshGeometry } from './geometry';
+import { tissueTexture } from './textures';
 import { explodeOffset, modelCenter, partCenter, visualState } from '../../engines/interaction-engine';
 import type { SceneView } from '../../stores/viewer';
 
@@ -41,6 +45,15 @@ function PartMesh({ spec, color, emissive, material, state, selected, pickable }
   const tint = spec.color ?? color;
   const sheenColor = useMemo(() => new THREE.Color(tint).lerp(new THREE.Color('#ffffff'), 0.45), [tint]);
   const doubleSide = isOpenSurface(spec);
+  const hl = useContext(HighlightColor);
+  // microrrelieve procedural (requiere coordenadas UV: las mallas con relieve orgánico ya tienen su propio relieve)
+  const bump = useMemo(() => {
+    if (spec.noise || !geom.attributes.uv) return null;
+    if (material === 'tejido') return { map: tissueTexture('tejido'), scale: 0.6 };
+    if (material === 'hueso') return { map: tissueTexture('hueso'), scale: 0.9 };
+    if (material === 'piel') return { map: tissueTexture('piel'), scale: 0.25 };
+    return null;
+  }, [material, spec.noise, geom]);
   useFrame((_, dt) => {
     const m = mat.current;
     if (!m) return;
@@ -55,7 +68,7 @@ function PartMesh({ spec, color, emissive, material, state, selected, pickable }
       <meshPhysicalMaterial
         ref={mat}
         color={tint}
-        emissive={selected ? '#22d3ee' : (emissive ?? tint)}
+        emissive={selected ? hl : (emissive ?? tint)}
         emissiveIntensity={0}
         roughness={preset.roughness}
         metalness={preset.metalness}
@@ -64,11 +77,13 @@ function PartMesh({ spec, color, emissive, material, state, selected, pickable }
         sheen={preset.sheen}
         sheenColor={sheenColor}
         sheenRoughness={0.5}
+        bumpMap={bump?.map ?? null}
+        bumpScale={bump?.scale ?? 1}
         transparent
         opacity={state.opacity}
         side={doubleSide ? THREE.DoubleSide : THREE.FrontSide}
       />
-      {selected && !doubleSide && <Outlines thickness={2.2} color="#22d3ee" screenspace opacity={0.95} transparent />}
+      {selected && !doubleSide && <Outlines thickness={2.2} color={hl} screenspace opacity={0.95} transparent />}
     </mesh>
   );
 }
@@ -204,7 +219,7 @@ function Part({ part, dense, defaultMaterial, center, view, seleccionId, hoverId
   );
 }
 
-export function ModelScene({ model, view, seleccionId, etiquetas, animar, onSelect }: Props) {
+export function ModelScene({ model, view, seleccionId, etiquetas, animar, onSelect, highlight }: Props & { highlight?: string }) {
   const center = useMemo(() => modelCenter(model), [model]);
   const [hoverId, setHover] = useState<string>();
   const capaDe = useMemo(() => new Map(model.parts.map((p) => [p.id, p.capa])), [model]);
@@ -214,6 +229,7 @@ export function ModelScene({ model, view, seleccionId, etiquetas, animar, onSele
     document.body.style.cursor = '';
   }, []);
   return (
+    <HighlightColor.Provider value={highlight ?? "#22d3ee"}>
     <group name="model-root">
       {model.parts.map((p) => (
         <Part key={p.id} part={p} dense={dense} defaultMaterial={model.id.startsWith('anatomia') ? 'tejido' : model.id.startsWith('biologia') ? 'membrana' : undefined} center={center} view={view} seleccionId={seleccionId} hoverId={hoverId} setHover={setHover} etiquetas={etiquetas} animar={animar} onSelect={onSelect} capaOculta={Boolean(p.capa && view.capasOcultas.includes(p.capa))} />
@@ -242,5 +258,6 @@ export function ModelScene({ model, view, seleccionId, etiquetas, animar, onSele
         );
       })}
     </group>
+    </HighlightColor.Provider>
   );
 }

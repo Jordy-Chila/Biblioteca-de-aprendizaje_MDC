@@ -39,7 +39,8 @@ export type PartRef =
   | { type: 'paso'; procesoId: string; index: number }
   | { type: 'evento'; id: string }
   | { type: 'tema'; id: string }
-  | { type: 'columna'; comparacionId: string; index: number };
+  | { type: 'columna'; comparacionId: string; index: number }
+  | { type: 'fila'; comparacionId: string; index: number };
 
 export type AnimSpec =
   | { type: 'spin'; axis: V3; speed: number }
@@ -89,6 +90,8 @@ export interface ModelDef {
   nota: string;
   /** Artículo de Wikipedia (español) con una imagen de referencia del modelo completo. */
   wiki?: string;
+  /** Estructuras en las que se centra la escena (las demás quedan como contexto translúcido). */
+  focusIds?: string[];
 }
 
 export interface SceneContext {

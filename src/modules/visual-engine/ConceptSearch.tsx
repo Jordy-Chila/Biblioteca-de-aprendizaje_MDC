@@ -6,6 +6,7 @@ import { useSession } from '../../stores/session';
 import { rootTopic } from '../../engines/document-engine/analysis/topics';
 import { buildScene } from '../../engines/visualization-engine';
 import { conceptForPart } from '../../engines/interaction-engine';
+import { findStructure } from '../../engines/interaction-engine/structures';
 import { cx } from '../../components/ui';
 
 /** Busca conceptos por nombre o alias: primero los que empiezan por la consulta. */
@@ -43,7 +44,14 @@ export function goToConcept(c: Concepto) {
       return;
     }
   }
-  // 2) mapa de conceptos del tema
+  // 2) cualquier otro modelo 3D del documento que contenga la estructura
+  const hit = findStructure(c, plan, doc);
+  if (hit) {
+    S.openTema(hit.escena.temaId, hit.escena.id);
+    setTimeout(() => useSession.getState().select(hit.part.id, `c:${c.id}`), 30);
+    return;
+  }
+  // 3) mapa de conceptos del tema
   const mapa = escenas.find((x) => x.sceneTypeId === 'generico.mapa-conceptos');
   S.openTema(temaId, mapa?.id);
   if (mapa) setTimeout(() => useSession.getState().select(c.id, `c:${c.id}`), 30);
