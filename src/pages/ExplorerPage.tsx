@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, Target, Box, ChevronDown, GitBranch, Info, ListTree, Network, Clock3, Columns3, PanelLeft, MessageCircleQuestion } from 'lucide-react';
+import { AlertTriangle, BookOpen, GraduationCap, Target, Box, ChevronDown, GitBranch, Info, ListTree, Network, Clock3, Columns3, PanelLeft, MessageCircleQuestion } from 'lucide-react';
 import { useSession } from '../stores/session';
 import { useViewer } from '../stores/viewer';
 import { useUI } from '../stores/ui';
-import { buildScene, DOC_TOPIC, getEntry } from '../engines/visualization-engine';
+import { buildScene, DOC_TOPIC, getEntry, isMetaTema } from '../engines/visualization-engine';
 import { subtree } from '../engines/visualization-engine/models/generic';
 import { conceptForPart } from '../engines/interaction-engine';
 import { Viewer3D } from '../modules/3d-viewer/Viewer3D';
@@ -111,9 +111,18 @@ export function ExplorerPage() {
             <Viewer3D model={model} escenaId={escena.id} seleccionId={selPart?.id} onSelect={onSelect} onDeselect={() => useSession.getState().select(undefined)} />
           ) : (
             <div className="grid-bg grid h-full place-items-center">
+              {tema && isMetaTema(tema) ? (
+                <Empty icon={<BookOpen className="size-6" />} title="Tema de apoyo, sin vista 3D">
+                  <p>Este apartado es de repaso o de referencia, no describe estructuras ni procesos que representar. Léelo en su resumen o practícalo en Estudio.</p>
+                  <button onClick={() => useSession.getState().goto('study')} className="glass mx-auto mt-4 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] text-white hover:border-accent/50">
+                    <GraduationCap className="size-4 text-accent" /> Ir a Estudio
+                  </button>
+                </Empty>
+              ) : (
               <Empty icon={<Info className="size-6" />} title="Este tema no tiene una representación visual">
                 No se identificaron estructuras, procesos ni conceptos suficientes para visualizarlo sin inventar contenido. Consulta su resumen o pregunta al tutor.
               </Empty>
+              )}
             </div>
           )}
           {/* viñeta y foco */}

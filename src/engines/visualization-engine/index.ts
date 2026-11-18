@@ -42,6 +42,11 @@ export function matchDomainModels(text: string, ctx: { plan: StudyPlan; doc: Doc
   return out.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
+/** Temas de apoyo (repaso, glosario, conceptos confundibles, preguntas, bibliografía): no se visualizan. */
+export function isMetaTema(tema: Pick<Tema, 'titulo'>): boolean {
+  return /repaso|resumen|conceptos que|glosario|preguntas|bibliograf|referencias|evaluaci|autoevaluaci|examen/.test(normalize(tema.titulo));
+}
+
 /**
  * Decide qué representaciones visuales necesita cada tema principal.
  * Nunca fuerza un modelo: si ningún modelo de dominio supera el umbral se usan representaciones genéricas
@@ -55,16 +60,17 @@ export function planScenes(doc: DocumentModel, plan: StudyPlan): Escena[] {
   // Sin vista general del documento: cada tema muestra solo lo suyo, para no saturar al estudiante.
   const roots = plan.temas.filter((t) => t.nivel === 1);
   for (const tema of roots) {
+    // Repaso, glosario, conceptos confundibles o bibliografía: material de apoyo, no contenido que se pueda
+    // representar. Sin escena: el explorador muestra su resumen y remite a Estudio.
+    if (isMetaTema(tema)) continue;
     const sub = subtree(tema.id, plan.temas);
     const text = topicText(doc, plan, tema);
     const titulo = normalize(tema.titulo);
-    // temas de repaso, glosario o bibliografía: no repiten modelos, usan su mapa de conceptos
-    const meta = /repaso|resumen|conceptos que|glosario|preguntas|bibliograf|referencias|evaluaci|autoevaluaci|examen/.test(titulo);
     const queue: { entry: CatalogEntry; titulo: string; score: number; params: Record<string, unknown>; prioridad: number }[] = [];
 
     // 1) Modelos 3D: solo si el tema habla de sus estructuras, y centrados en ellas
     const hijos = plan.temas.filter((t) => t.padreId === tema.id);
-    const candidatos = meta ? [] : matchDomainModels(text, { plan, doc, tema });
+    const candidatos = matchDomainModels(text, { plan, doc, tema });
     for (const m of candidatos) {
       const focus = focusParts(m.entry, m.params, text, { plan, doc, tema });
       const enTitulo = m.entry.palabrasClave.some((k) => containsWord(titulo, normalize(k))) || focus.nombres.some((n) => containsWord(titulo, normalize(n)));

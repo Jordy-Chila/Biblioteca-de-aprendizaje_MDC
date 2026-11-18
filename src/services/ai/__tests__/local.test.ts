@@ -46,7 +46,10 @@ test('análisis local del documento del parto', async () => {
   expect(plan.escenas.some((e) => e.sceneTypeId === 'anatomia.cerebro')).toBe(false);
   // todas las escenas se pueden construir
   for (const e of plan.escenas) expect(buildScene(e, plan, doc), e.sceneTypeId).not.toBeNull();
-  for (const t of n1) expect(plan.escenas.some((e) => e.temaId === t.id), t.titulo).toBe(true);
+  // temas de contenido: al menos una vista; repaso, conceptos confundibles y bibliografía: ninguna
+  const meta = (t: { titulo: string }) => /^1[5-7]\./.test(t.titulo);
+  for (const t of n1.filter((x) => !meta(x))) expect(plan.escenas.some((e) => e.temaId === t.id), t.titulo).toBe(true);
+  for (const t of n1.filter(meta)) expect(plan.escenas.filter((e) => e.temaId === t.id), t.titulo).toEqual([]);
 });
 
 test('documento sin títulos y de otra materia', () => {
@@ -108,6 +111,6 @@ test('cada tema muestra su propio enfoque y los subtemas secuenciales adaptan el
   // clasificación: primero su tabla; temas sin modelo: una sola vista
   expect(esc('2.')[0].sceneTypeId).toBe('generico.comparacion');
   expect(esc('8.')).toHaveLength(1);
-  // repaso: sin modelos repetidos
-  expect(esc('16.').some((e) => !e.sceneTypeId.startsWith('generico.'))).toBe(false);
+  // repaso: sin visualización (no es contenido para representar en 3D)
+  expect(esc('16.')).toEqual([]);
 });
