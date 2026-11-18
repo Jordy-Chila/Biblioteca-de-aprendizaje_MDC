@@ -9,5 +9,5 @@ test('el código de la aplicación no usa ningún almacenamiento persistente', (
 
 test('no hay claves de API en el código', () => {
   const archivos = globSync('src/**/*.{ts,tsx}');
-  for (const f of archivos) expect(readFileSync(f, 'utf8'), f).not.toMatch(/sk-ant-[A-Za-z0-9_-]{10,}/);
+  for (const f of archivos) expect(readFileSync(f, 'utf8'), f).not.toMatch(/sk-(ant-|proj-)?[A-Za-z0-9_-]{20,}/);
 });

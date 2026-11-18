@@ -10,6 +10,7 @@ import { useSession } from '../../stores/session';
 import { normalize } from '../../utils/normalize';
 import { goToConcept } from '../visual-engine/ConceptSearch';
 import { EMPTY_OBJ } from '../../utils/empty';
+import { iaNombre } from '../../stores/ai';
 
 export function Summaries({ plan, doc }: { plan: StudyPlan; doc: DocumentModel }) {
   const aiOn = useAI((s) => s.status === 'conectado');
@@ -19,7 +20,7 @@ export function Summaries({ plan, doc }: { plan: StudyPlan; doc: DocumentModel }
   const pedir = async (temaId: string) => {
     setAi((s) => ({ ...s, [temaId]: { loading: true } }));
     try {
-      const puntos = await useAI.getState().claude!.summarize(doc, plan, temaId);
+      const puntos = await useAI.getState().ia!.summarize(doc, plan, temaId);
       setAi((s) => ({ ...s, [temaId]: { puntos } }));
     } catch (e) {
       setAi((s) => ({ ...s, [temaId]: { error: e instanceof Error ? e.message : String(e) } }));
@@ -27,14 +28,14 @@ export function Summaries({ plan, doc }: { plan: StudyPlan; doc: DocumentModel }
   };
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <p className="text-[13px] text-mist-400">Resumen extractivo: oraciones clave tomadas literalmente de cada sección.{aiOn ? ' También puedes pedir a Claude un resumen redactado (marcado como generado por IA).' : ''}</p>
+      <p className="text-[13px] text-mist-400">Resumen extractivo: oraciones clave tomadas literalmente de cada sección.{aiOn ? ' También puedes pedir a ' + iaNombre() + ' un resumen redactado (marcado como generado por IA).' : ''}</p>
       {roots.map((t) => (
         <article key={t.id} className="glass rounded-3xl p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="font-display text-[16px] text-white">{t.titulo}</h3>
             {aiOn && !ai[t.id]?.puntos && (
               <Button size="sm" variant="outline" loading={ai[t.id]?.loading} icon={<Sparkles className="size-3.5 text-purple-300" />} onClick={() => pedir(t.id)}>
-                Resumen con Claude
+                Resumen con {iaNombre()}
               </Button>
             )}
           </div>

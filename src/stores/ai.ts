@@ -2,7 +2,10 @@ import { create } from 'zustand';
 import type { Ficha } from '../types/plan';
 import type { AIProvider, TutorAnswer, TutorScope } from '../services/ai/types';
 import { localProvider } from '../services/ai/localProvider';
-import { ClaudeProvider, DEFAULT_MODEL } from '../services/ai/claudeProvider';
+import { ClaudeProvider, DEFAULT_MODEL, type LLMProvider } from '../services/ai/claudeProvider';
+import { OpenAIProvider } from '../services/ai/openaiProvider';
+
+export type ProveedorExterno = 'claude' | 'openai';
 
 export interface TutorEntry {
   id: string;
@@ -12,7 +15,7 @@ export interface TutorEntry {
   answer?: TutorAnswer;
   error?: string;
   pending?: boolean;
-  proveedor: 'local' | 'claude';
+  proveedor: 'local' | 'claude' | 'openai';
 }
 
 interface AIState {
@@ -21,11 +24,12 @@ interface AIState {
   model: string;
   status: 'desconectado' | 'verificando' | 'conectado' | 'error';
   error?: string;
-  claude?: ClaudeProvider;
+  /** Proveedor externo conectado (Claude o ChatGPT). */
+  ia?: LLMProvider;
   fichas: Record<string, { loading: boolean; fichas?: Ficha[]; error?: string }>;
   tutor: Record<string, TutorEntry[]>;
   provider(): AIProvider;
-  connect(apiKey: string, model: string): Promise<boolean>;
+  connect(apiKey: string, model: string, proveedor?: ProveedorExterno): Promise<boolean>;
   disconnect(): void;
   setFichas(key: string, v: AIState['fichas'][string]): void;
   pushTutor(docId: string, e: TutorEntry): void;
@@ -39,27 +43,32 @@ export const useAI = create<AIState>()((set, get) => ({
   status: 'desconectado',
   fichas: {},
   tutor: {},
-  provider: () => (get().status === 'conectado' && get().claude ? get().claude! : localProvider),
-  connect: async (apiKey, model) => {
+  provider: () => (get().status === 'conectado' && get().ia ? get().ia! : localProvider),
+  connect: async (apiKey, model, proveedor = 'claude') => {
     const key = apiKey.trim();
     if (!key) {
       set({ status: 'error', error: 'Escribe una clave de API.' });
       return false;
     }
     set({ status: 'verificando', error: undefined });
-    const claude = new ClaudeProvider(key, model);
+    const ia: LLMProvider = proveedor === 'openai' ? new OpenAIProvider(key, model) : new ClaudeProvider(key, model);
     try {
-      await claude.test();
-      set({ apiKey: key, model, claude, status: 'conectado' });
+      await ia.test();
+      set({ apiKey: key, model, ia, status: 'conectado' });
       return true;
     } catch (e) {
-      set({ status: 'error', error: e instanceof Error ? e.message : String(e), claude: undefined });
+      set({ status: 'error', error: e instanceof Error ? e.message : String(e), ia: undefined });
       return false;
     }
   },
-  disconnect: () => set({ apiKey: '', claude: undefined, status: 'desconectado', error: undefined, fichas: {} }),
+  disconnect: () => set({ apiKey: '', ia: undefined, status: 'desconectado', error: undefined, fichas: {} }),
   setFichas: (key, v) => set((s) => ({ fichas: { ...s.fichas, [key]: v } })),
   pushTutor: (docId, e) => set((s) => ({ tutor: { ...s.tutor, [docId]: [...(s.tutor[docId] ?? []), e] } })),
   patchTutor: (docId, id, p) => set((s) => ({ tutor: { ...s.tutor, [docId]: (s.tutor[docId] ?? []).map((x) => (x.id === id ? { ...x, ...p } : x)) } })),
   clearTutor: (docId) => set((s) => ({ tutor: { ...s.tutor, [docId]: [] } })),
 }));
+
+/** Nombre corto del proveedor externo conectado ("Claude", "ChatGPT") o "la IA". */
+export function iaNombre(): string {
+  return useAI.getState().ia?.nombre ?? 'la IA';
+}

@@ -32,6 +32,36 @@ body,
   height: 100%;
 }
 
+html,
+body,
+#root {
+  height: 100dvh;
+}
+
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* El lienzo 3D gestiona sus propios gestos (rotar, pellizcar, desplazar) */
+canvas {
+  touch-action: none;
+}
+
+@media (max-width: 767px) {
+  .label3d {
+    font-size: 9.5px;
+    padding: 2px 6px;
+  }
+  .label3d--sm {
+    font-size: 8px;
+    padding: 1px 5px;
+  }
+  .label3d--on {
+    font-size: 11px;
+  }
+}
+
 body {
   margin: 0;
   background: var(--color-ink-900);

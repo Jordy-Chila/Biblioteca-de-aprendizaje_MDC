@@ -60,7 +60,7 @@ export const localProvider: AIProvider = {
       documento: hits.map((h) => ({ ...fromBlock(h.block.text, h.block.id), verificada: true, pagina: h.block.page })),
       adicional: [],
       insuficiente: hits.length === 0,
-      nota: 'Modo local: se muestran los fragmentos del documento más relacionados con tu pregunta. Para obtener una respuesta redactada, conecta Claude en «Configuración de IA».',
+      nota: 'Modo local: se muestran los fragmentos del documento más relacionados con tu pregunta. Para obtener una respuesta redactada, conecta Claude o ChatGPT en «Configuración de IA».',
     };
   },
 };

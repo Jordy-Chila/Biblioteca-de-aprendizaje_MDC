@@ -5,6 +5,7 @@ import { useSession, type Material } from '../../stores/session';
 import { useAI } from '../../stores/ai';
 import { enrichWithAI } from '../../services/document/pipeline';
 import { getEntry } from '../../engines/visualization-engine';
+import { iaNombre } from '../../stores/ai';
 
 const FORMATO: Record<string, string> = { pdf: 'PDF', docx: 'Word (DOCX)', pptx: 'PowerPoint (PPTX)', txt: 'Texto', md: 'Markdown', image: 'Imagen (OCR)' };
 
@@ -57,13 +58,13 @@ export function MaterialCard({ m }: { m: Material }) {
         <div className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="accent">{plan.dominio.materia}</Badge>
-            <Badge tone={plan.proveedor === 'claude' ? 'gen' : 'default'}>
-              {plan.proveedor === 'claude' ? <Sparkles className="size-3" /> : <CheckCircle2 className="size-3" />}
-              {plan.proveedor === 'claude' ? 'Analizado con Claude' : 'Análisis local'}
+            <Badge tone={plan.proveedor !== 'local' ? 'gen' : 'default'}>
+              {plan.proveedor !== 'local' ? <Sparkles className="size-3" /> : <CheckCircle2 className="size-3" />}
+              {plan.proveedor !== 'local' ? `Analizado con ${plan.proveedor === 'openai' ? 'ChatGPT' : 'Claude'}` : 'Análisis local'}
             </Badge>
             {m.enriqueciendo && (
               <Badge tone="gen">
-                <Spinner className="size-3 text-purple-300" /> Claude mejorando el análisis…
+                <Spinner className="size-3 text-purple-300" /> {iaNombre()} mejorando el análisis…
               </Badge>
             )}
           </div>
@@ -115,7 +116,7 @@ export function MaterialCard({ m }: { m: Material }) {
             </Button>
             {aiOn && plan.proveedor === 'local' && !m.enriqueciendo && (
               <Button variant="outline" icon={<Sparkles className="size-4" />} onClick={() => enrichWithAI(m.id)}>
-                Analizar con Claude
+                Analizar con {iaNombre()}
               </Button>
             )}
           </div>

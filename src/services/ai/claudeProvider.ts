@@ -65,41 +65,20 @@ function explainError(e: unknown): ClaudeError {
   return new ClaudeError(e instanceof Error ? e.message : String(e));
 }
 
-export class ClaudeProvider implements AIProvider {
-  id = 'claude' as const;
-  nombre = 'Claude (Anthropic)';
+/**
+ * Proveedor de IA con salida estructurada. Toda la lógica (análisis, fichas, tutor, preguntas…) es común;
+ * cada subclase solo implementa `call`, que envía el mensaje y devuelve JSON validado con zod.
+ */
+export abstract class LLMProvider implements AIProvider {
+  abstract id: 'claude' | 'openai';
+  abstract nombre: string;
   externo = true;
-  private client: Anthropic;
-
-  constructor(apiKey: string, private model = DEFAULT_MODEL) {
-    // La clave pertenece al usuario, se escribe en esta sesión y solo vive en memoria.
-    this.client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 2 });
-  }
-
-  private async call<T extends z.ZodType>(schema: T, user: string, maxTokens = 16000): Promise<z.infer<T>> {
-    try {
-      const res = await this.client.beta.messages.parse({
-        model: this.model,
-        max_tokens: maxTokens,
-        system: SYSTEM,
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
-        messages: [{ role: 'user', content: user }],
-        output_config: { format: betaZodOutputFormat(schema) },
-      });
-      if (res.stop_reason === 'refusal') throw new ClaudeError('El modelo declinó responder a esta petición.');
-      if (res.stop_reason === 'max_tokens') throw new ClaudeError('La respuesta fue demasiado larga y quedó incompleta. Prueba con un tema más concreto.');
-      if (!res.parsed_output) throw new ClaudeError('La respuesta de la IA no tenía el formato esperado.');
-      return res.parsed_output as z.infer<T>;
-    } catch (e) {
-      if (e instanceof ClaudeError) throw e;
-      throw explainError(e);
-    }
-  }
+  protected testTokens = 200;
+  protected abstract call<T extends z.ZodType>(schema: T, user: string, maxTokens?: number): Promise<z.infer<T>>;
 
   /** Comprueba que la clave funciona con una petición mínima. */
   async test(): Promise<void> {
-    await this.call(z.object({ ok: z.boolean() }), 'Responde {"ok": true}.', 200);
+    await this.call(z.object({ ok: z.boolean() }), 'Responde {"ok": true}.', this.testTokens);
   }
 
   async analyze(doc: DocumentModel, onProgress?: (f: number, m: string) => void): Promise<StudyPlan> {
@@ -145,7 +124,7 @@ ${text}`,
       32000,
     );
     onProgress?.(0.9, 'Verificando las citas contra el documento');
-    return verifyPlan(mergeEnrichment(plan, r, doc), doc);
+    return verifyPlan(mergeEnrichment(plan, r, doc, this.id), doc);
   }
 
   async explain(doc: DocumentModel, plan: StudyPlan, nombres: string[], contexto: string): Promise<Ficha[]> {
@@ -249,7 +228,7 @@ type Enrichment = {
 };
 
 /** Fusiona el análisis de Claude con el local sin perder nada del local. */
-export function mergeEnrichment(plan: StudyPlan, r: Enrichment, doc: DocumentModel): StudyPlan {
+export function mergeEnrichment(plan: StudyPlan, r: Enrichment, doc: DocumentModel, proveedor: StudyPlan['proveedor'] = 'claude'): StudyPlan {
   const temaIds = new Set(plan.temas.map((t) => t.id));
   const conceptos = plan.conceptos.map((c) => ({ ...c, definicion: [...c.definicion], fichas: [...c.fichas] }));
   const byName = new Map(conceptos.map((c) => [normalize(c.nombre), c]));
@@ -307,7 +286,7 @@ export function mergeEnrichment(plan: StudyPlan, r: Enrichment, doc: DocumentMod
   }
   return {
     ...plan,
-    proveedor: 'claude',
+    proveedor,
     dominio: { materia: r.materia || plan.dominio.materia, tema: r.tema || plan.dominio.tema, confianza: 0.9 },
     temas,
     conceptos,
@@ -315,3 +294,39 @@ export function mergeEnrichment(plan: StudyPlan, r: Enrichment, doc: DocumentMod
     escenas,
   };
 }
+
+/** Claude (Anthropic) con el SDK oficial y salida estructurada. */
+export class ClaudeProvider extends LLMProvider {
+  id = 'claude' as const;
+  nombre = 'Claude';
+  private client: Anthropic;
+
+  constructor(apiKey: string, private model = DEFAULT_MODEL) {
+    super();
+    // La clave pertenece al usuario, se escribe en esta sesión y solo vive en memoria.
+    this.client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 2 });
+  }
+
+  protected async call<T extends z.ZodType>(schema: T, user: string, maxTokens = 16000): Promise<z.infer<T>> {
+    try {
+      const res = await this.client.beta.messages.parse({
+        model: this.model,
+        max_tokens: maxTokens,
+        system: SYSTEM,
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        messages: [{ role: 'user', content: user }],
+        output_config: { format: betaZodOutputFormat(schema) },
+      });
+      if (res.stop_reason === 'refusal') throw new ClaudeError('El modelo declinó responder a esta petición.');
+      if (res.stop_reason === 'max_tokens') throw new ClaudeError('La respuesta fue demasiado larga y quedó incompleta. Prueba con un tema más concreto.');
+      if (!res.parsed_output) throw new ClaudeError('La respuesta de la IA no tenía el formato esperado.');
+      return res.parsed_output as z.infer<T>;
+    } catch (e) {
+      if (e instanceof ClaudeError) throw e;
+      throw explainError(e);
+    }
+  }
+}
+
+export { SYSTEM as SYSTEM_PROMPT };

@@ -8,6 +8,7 @@ import { AfirmacionView } from '../../components/AfirmacionView';
 import { Button, IconButton, Spinner, cx } from '../../components/ui';
 import type { TutorScope } from '../../services/ai/types';
 import { EMPTY_ARR } from '../../utils/empty';
+import { iaNombre } from '../../stores/ai';
 
 let seq = 0;
 
@@ -35,7 +36,7 @@ function Answer({ e }: { e: TutorEntry }) {
   if (e.pending)
     return (
       <p className="flex items-center gap-2 text-[13px] text-mist-400">
-        <Spinner /> {e.proveedor === 'claude' ? 'Claude está consultando el documento…' : 'Buscando en el documento…'}
+        <Spinner /> {e.proveedor !== 'local' ? `${iaNombre()} está consultando el documento…` : 'Buscando en el documento…'}
       </p>
     );
   if (e.error) return <p className="text-[13px] text-rose-300">{e.error}</p>;
@@ -45,7 +46,7 @@ function Answer({ e }: { e: TutorEntry }) {
       {a.documento.length > 0 && (
         <div className="space-y-2.5">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
-            <FileSearch className="size-3.5" /> {e.proveedor === 'claude' ? 'Según el documento' : 'Fragmentos relacionados del documento'}
+            <FileSearch className="size-3.5" /> {e.proveedor !== 'local' ? 'Según el documento' : 'Fragmentos relacionados del documento'}
           </p>
           {a.documento.map((x, i) => (
             <AfirmacionView key={i} a={x} compact />
@@ -102,14 +103,14 @@ export function TutorDrawer() {
   return (
     <AnimatePresence>
       {open && (
-        <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 34 }} className="glass fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-y-0 border-r-0 shadow-2xl" aria-label="Tutor inteligente">
+        <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 34 }} className="glass fixed top-0 right-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-50 flex w-full max-w-md flex-col md:bottom-0 border-y-0 border-r-0 shadow-2xl" aria-label="Tutor inteligente">
           <header className="flex items-center gap-3 border-b border-white/6 p-4">
             <div className="grid size-9 place-items-center rounded-xl bg-purple-400/15 text-purple-300">
               <Bot className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="font-display text-[15px] text-white">Tutor</h2>
-              <p className="truncate text-[12px] text-mist-400">{aiOn ? 'Claude · responde basándose en tu documento' : 'Modo local · muestra fragmentos del documento'}</p>
+              <p className="truncate text-[12px] text-mist-400">{aiOn ? `${iaNombre()} · responde basándose en tu documento` : 'Modo local · muestra fragmentos del documento'}</p>
             </div>
             {docId && entries.length > 0 && (
               <IconButton label="Borrar conversación" onClick={() => useAI.getState().clearTutor(docId)}>
@@ -130,7 +131,7 @@ export function TutorDrawer() {
                   <p className="rounded-xl bg-white/4 p-3 text-mist-400">
                     Ahora mismo no hay IA externa: verás los fragmentos del documento que mejor responden a tu pregunta.{' '}
                     <button className="text-accent hover:underline" onClick={() => useUI.getState().set({ aiSettings: true })}>
-                      Conectar Claude
+                      Conectar IA
                     </button>
                   </p>
                 )}

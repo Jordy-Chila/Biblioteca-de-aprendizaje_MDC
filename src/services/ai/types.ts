@@ -44,7 +44,7 @@ export interface OpenGrade {
 
 /** Proveedor de inteligencia: el local siempre existe; los externos son opcionales. */
 export interface AIProvider {
-  id: 'local' | 'claude';
+  id: 'local' | 'claude' | 'openai';
   nombre: string;
   /** Requiere conexión a un servicio externo. */
   externo: boolean;

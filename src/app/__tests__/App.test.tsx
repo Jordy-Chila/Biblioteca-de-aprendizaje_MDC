@@ -38,7 +38,7 @@ test('procesa un DOCX, muestra el material y genera actividades', async () => {
   expect(await screen.findByText('Aprendizaje guiado')).toBeInTheDocument();
   // archivo dañado: error legible y el material anterior sigue
   addFiles([new File(['basura'], 'roto.docx')]);
-  fireEvent.click(screen.getByText('Inicio'));
+  fireEvent.click(screen.getAllByText('Inicio')[0]);
   expect(await screen.findByText(/No se pudo leer el archivo/, {}, { timeout: 8000 })).toBeInTheDocument();
   expect(useSession.getState().materials.filter((m) => m.status === 'listo')).toHaveLength(1);
 });

@@ -7,7 +7,7 @@ import { IconButton, cx } from '../../components/ui';
 import { partKey } from './partKey';
 
 /** Leyenda: lista de componentes con color, visibilidad y transparencia; capas del modelo. */
-export function LegendPanel({ model, escenaId, onClose }: { model: ModelDef; escenaId: string; onClose(): void }) {
+export function LegendPanel({ model, escenaId, onClose, embedded = false }: { model: ModelDef; escenaId: string; onClose(): void; embedded?: boolean }) {
   const view = useViewer((s) => s.views[escenaId]) ?? useViewer.getState().view(escenaId);
   const selection = useSession((s) => s.selection);
   const V = useViewer.getState;
@@ -18,8 +18,8 @@ export function LegendPanel({ model, escenaId, onClose }: { model: ModelDef; esc
     return true;
   });
   return (
-    <motion.aside initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} className="pointer-events-auto glass flex max-h-[60vh] w-64 flex-col rounded-3xl p-3 shadow-2xl" aria-label="Componentes del modelo">
-      <div className="mb-2 flex items-center justify-between px-1">
+    <motion.aside initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} className={embedded ? "flex flex-col" : "pointer-events-auto glass flex max-h-[60vh] w-64 flex-col rounded-3xl p-3 shadow-2xl"} aria-label="Componentes del modelo">
+      <div className={cx("mb-2 items-center justify-between px-1", embedded ? "hidden" : "flex")}>
         <p className="text-[11px] uppercase tracking-[0.14em] text-mist-400">Componentes ({parts.length})</p>
         <IconButton label="Cerrar" className="size-7" onClick={onClose}>
           <X className="size-3.5" />

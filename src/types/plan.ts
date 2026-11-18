@@ -102,7 +102,7 @@ export type Pregunta = z.infer<typeof PreguntaSchema>;
 
 export const StudyPlanSchema = z.object({
   documentId: z.string(),
-  proveedor: z.enum(['local', 'claude']),
+  proveedor: z.enum(['local', 'claude', 'openai']),
   dominio: z.object({ materia: z.string(), tema: z.string(), confianza: z.number() }),
   temas: z.array(TemaSchema),
   conceptos: z.array(ConceptoSchema),

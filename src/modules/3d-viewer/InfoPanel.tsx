@@ -15,6 +15,7 @@ import { useUI } from '../../stores/ui';
 import { useDocRefs } from '../../hooks/useDocRefs';
 import { goToConcept } from '../visual-engine/ConceptSearch';
 import { partKey } from './partKey';
+import { iaNombre } from '../../stores/ai';
 
 function Section({ title, children, defaultOpen = true, badge }: { title: string; children: React.ReactNode; defaultOpen?: boolean; badge?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -31,7 +32,7 @@ function Section({ title, children, defaultOpen = true, badge }: { title: string
   );
 }
 
-export function InfoPanel({ part, model, plan, doc, onClose }: { part: PartDef; model: ModelDef; plan: StudyPlan; doc: DocumentModel; onClose(): void }) {
+export function InfoPanel({ part, model, plan, doc, onClose, sheet = false }: { part: PartDef; model: ModelDef; plan: StudyPlan; doc: DocumentModel; onClose(): void; sheet?: boolean }) {
   const info = useMemo(() => resolvePartInfo(part, model, plan, doc), [part, model, plan, doc]);
   const docId = useSession((s) => s.activeDocId)!;
   const temaId = useSession((s) => s.activeTemaId);
@@ -49,10 +50,10 @@ export function InfoPanel({ part, model, plan, doc, onClose }: { part: PartDef; 
 
   const pedirFicha = async () => {
     const ai = useAI.getState();
-    if (!ai.claude) return;
+    if (!ai.ia) return;
     ai.setFichas(fichaKey, { loading: true });
     try {
-      const fichas = await ai.claude.explain(doc, plan, info.nombres, `la visualización «${model.titulo}»`);
+      const fichas = await ai.ia.explain(doc, plan, info.nombres, `la visualización «${model.titulo}»`);
       useAI.getState().setFichas(fichaKey, { loading: false, fichas });
     } catch (e) {
       useAI.getState().setFichas(fichaKey, { loading: false, error: e instanceof Error ? e.message : String(e) });
@@ -62,14 +63,17 @@ export function InfoPanel({ part, model, plan, doc, onClose }: { part: PartDef; 
   return (
     <motion.aside
       key={part.id}
-      initial={{ opacity: 0, x: 24 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 24 }}
+      initial={sheet ? { y: "100%" } : { opacity: 0, x: 24 }}
+      animate={sheet ? { y: 0 } : { opacity: 1, x: 0 }}
+      {...(sheet ? { drag: "y" as const, dragConstraints: { top: 0, bottom: 0 }, dragElastic: { top: 0, bottom: 0.6 }, onDragEnd: (_: unknown, i: { offset: { y: number }; velocity: { y: number } }) => (i.offset.y > 90 || i.velocity.y > 500) && onClose() } : {})}
+      exit={sheet ? { y: "100%" } : { opacity: 0, x: 24 }}
       transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-      className="glass pointer-events-auto flex max-h-full w-full flex-col overflow-hidden rounded-3xl shadow-2xl lg:w-[400px]"
+      className={cx("glass pointer-events-auto flex max-h-full w-full flex-col overflow-hidden shadow-2xl", sheet ? "rounded-t-3xl border-b-0" : "rounded-3xl lg:w-[400px]")}
+      style={sheet ? { paddingBottom: "env(safe-area-inset-bottom)" } : undefined}
       aria-label={`Información de ${info.titulo}`}
     >
-      <header className="flex items-start gap-3 border-b border-white/6 p-5 pb-4">
+      {sheet && <span className="mx-auto mt-2 block h-1 w-10 shrink-0 rounded-full bg-white/25" aria-hidden />}
+      <header className={cx("flex items-start gap-3 border-b border-white/6 pb-4", sheet ? "px-4 pt-2" : "p-5")}>
         <span className="mt-1.5 size-3 shrink-0 rounded-full shadow-[0_0_14px_currentColor]" style={{ background: part.color, color: part.color }} aria-hidden />
         <div className="min-w-0 flex-1">
           <h3 className="font-display text-xl leading-tight text-white">{info.titulo}</h3>
@@ -83,7 +87,7 @@ export function InfoPanel({ part, model, plan, doc, onClose }: { part: PartDef; 
         </IconButton>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-5">
+      <div className={cx("flex-1 overflow-y-auto overscroll-contain pb-5", sheet ? "px-4" : "px-5")} onPointerDownCapture={sheet ? (e) => e.stopPropagation() : undefined}>
         {wikiTitle && (
           <Section title="Cómo es en realidad">
             <ReferenceCard title={wikiTitle} />
@@ -131,7 +135,7 @@ export function InfoPanel({ part, model, plan, doc, onClose }: { part: PartDef; 
         {info.sinMenciones && (
           <div className="mt-3 flex items-start gap-2 rounded-2xl bg-white/4 p-3 text-[13px] text-mist-300">
             <Info className="mt-0.5 size-4 shrink-0 text-mist-400" />
-            <p>El documento no menciona esta estructura. Se muestra en el modelo para dar contexto espacial{aiOn ? '; puedes pedir información complementaria a Claude.' : '.'}</p>
+            <p>El documento no menciona esta estructura. Se muestra en el modelo para dar contexto espacial{aiOn ? '; puedes pedir información complementaria a ' + iaNombre() + '.' : '.'}</p>
           </div>
         )}
 
@@ -150,7 +154,7 @@ export function InfoPanel({ part, model, plan, doc, onClose }: { part: PartDef; 
         <div className="mt-4 space-y-2 border-t border-white/6 pt-4">
           {aiOn && !fichaIA?.fichas && (
             <Button variant="outline" className="w-full" loading={fichaIA?.loading} icon={<Sparkles className="size-4 text-purple-300" />} onClick={pedirFicha}>
-              {fichaIA?.loading ? 'Claude está elaborando la ficha…' : 'Ficha completa con Claude'}
+              {fichaIA?.loading ? `${iaNombre()} está elaborando la ficha…` : `Ficha completa con ${iaNombre()}`}
             </Button>
           )}
           {fichaIA?.error && <p className="text-[12px] text-rose-300">{fichaIA.error}</p>}
@@ -169,13 +173,13 @@ export function InfoPanel({ part, model, plan, doc, onClose }: { part: PartDef; 
             <p className="text-[11px] leading-relaxed text-mist-400">
               Sin IA conectada, el tutor responde mostrando los fragmentos del documento más relacionados.{' '}
               <button className="text-accent hover:underline" onClick={() => useUI.getState().set({ aiSettings: true })}>
-                Conectar Claude
+                Conectar IA
               </button>
             </p>
           )}
           {fichaIA?.loading && (
             <p className="flex items-center gap-2 text-[12px] text-mist-400">
-              <Spinner /> Consultando a Claude…
+              <Spinner /> Consultando a {iaNombre()}…
             </p>
           )}
         </div>

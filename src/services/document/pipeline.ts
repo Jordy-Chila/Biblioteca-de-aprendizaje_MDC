@@ -41,16 +41,16 @@ export async function enrichWithAI(materialId: string) {
   const S = useSession.getState;
   const m = S().materials.find((x) => x.id === materialId);
   const ai = useAI.getState();
-  if (!m?.docId || ai.status !== 'conectado' || !ai.claude) return;
+  if (!m?.docId || ai.status !== 'conectado' || !ai.ia) return;
   const doc = S().documents[m.docId];
   const plan = S().plans[m.docId];
   if (!doc || !plan) return;
-  S().upsertMaterial({ id: materialId, enriqueciendo: true, errorIA: undefined, message: 'Claude está mejorando el análisis' });
+  S().upsertMaterial({ id: materialId, enriqueciendo: true, errorIA: undefined, message: `${ai.ia.nombre} está mejorando el análisis` });
   try {
-    const enriched = await ai.claude.enrich(doc, plan);
+    const enriched = await ai.ia.enrich(doc, plan);
     if (!S().documents[m.docId]) return;
     S().setPlan(m.docId, enriched);
-    S().upsertMaterial({ id: materialId, enriqueciendo: false, message: 'Análisis con Claude completado' });
+    S().upsertMaterial({ id: materialId, enriqueciendo: false, message: `Análisis con ${ai.ia.nombre} completado` });
   } catch (e) {
     S().upsertMaterial({ id: materialId, enriqueciendo: false, errorIA: e instanceof Error ? e.message : String(e), message: 'Análisis local (la mejora con IA falló)' });
   }

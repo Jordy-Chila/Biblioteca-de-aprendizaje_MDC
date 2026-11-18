@@ -23,6 +23,10 @@ npm run build      # genera dist/
 
 `vite.config.ts` usa `base: './'`, así que funciona en `https://<usuario>.github.io/<cualquier-repo>/` sin cambios.
 
+## Teléfonos (Android / iOS)
+
+En pantallas de menos de 768 px la interfaz cambia a una versión móvil: barra de navegación inferior (Inicio, Explorar 3D, Estudio, Tutor), temas y resumen en hojas que se deslizan desde abajo, ficha de la estructura como hoja inferior que se cierra arrastrándola, barra de herramientas en una sola fila y gestos táctiles (arrastrar para girar, pellizcar para acercar). Respeta las zonas seguras (muesca, barra de inicio) y se puede añadir a la pantalla de inicio («Añadir a pantalla de inicio» en Safari o Chrome).
+
 ## Inteligencia artificial
 
 | Modo | Qué hace | Requisitos |
@@ -30,6 +34,8 @@ npm run build      # genera dist/
 | **Local** (siempre activo) | Extrae temas y subtemas (títulos), conceptos (pares término–definición en listas, párrafos y tablas), procesos (listas numeradas, secuencias con →), comparaciones (tablas), preguntas del documento, alertas, bibliografía y fechas; clasifica la materia por léxico; elige visualizaciones; tutor que devuelve los fragmentos más relevantes (BM25); flashcards, cuestionarios, evaluación y resúmenes extractivos. | Ninguno |
 | **Claude** (opcional) | Clasificación fina de la materia, fichas por estructura (ubicación, funciones, consecuencias…), relaciones, tutor con respuestas redactadas, preguntas generadas, corrección de respuestas abiertas y resúmenes. | Clave de API de Anthropic que el usuario escribe en **Configuración de IA** |
 
+- **También ChatGPT (OpenAI)**: en «Configuración de IA» se elige Claude o ChatGPT. ChatGPT usa la API de Chat Completions (`api.openai.com`) con respuesta JSON validada por los mismos esquemas; modelo por defecto `gpt-5-mini`. Ambos proveedores comparten la misma lógica (`LLMProvider`), así que el tutor, las fichas, las preguntas y la verificación de citas funcionan igual.
+- **Cómo conseguir la clave**: Claude → console.anthropic.com → Billing (crédito) → API Keys → Create Key. ChatGPT → platform.openai.com → Settings → Billing → API keys → Create new secret key. Las suscripciones claude.ai / ChatGPT Plus no incluyen la API.
 - La clave se guarda **solo en memoria** de la pestaña y se envía únicamente a `api.anthropic.com` (SDK oficial `@anthropic-ai/sdk` con `dangerouslyAllowBrowser`, aceptable porque la clave es del propio usuario). Nunca se incluye en el código ni en el repositorio.
 - Modelo por defecto `claude-opus-5-5` (seleccionable: Sonnet 5.5, Haiku 5.5). Salida estructurada validada con zod y *fallback* del servidor (`fallbacks: "default"`) activado ante rechazos.
 - **Verificación de citas**: toda afirmación marcada "del documento" debe traer una cita literal que se comprueba contra el texto extraído; si no aparece, se degrada a "complementario · no verificada".

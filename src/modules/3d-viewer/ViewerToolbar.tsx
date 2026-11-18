@@ -15,7 +15,7 @@ export function ViewerToolbar({ model, escenaId, onToggleLegend, legendOpen }: {
   const hasAnim = model.parts.some((p) => p.anim);
 
   return (
-    <div className="pointer-events-auto flex flex-wrap items-center gap-1 rounded-2xl glass p-1.5 shadow-xl" role="toolbar" aria-label="Controles del modelo 3D">
+    <div className="pointer-events-auto flex max-w-full flex-nowrap items-center gap-0.5 rounded-2xl glass p-1 shadow-xl md:flex-wrap md:gap-1 md:p-1.5" role="toolbar" aria-label="Controles del modelo 3D">
       <IconButton label="Capas y componentes" active={legendOpen} onClick={onToggleLegend}>
         <Layers className="size-4" />
       </IconButton>
@@ -27,7 +27,7 @@ export function ViewerToolbar({ model, escenaId, onToggleLegend, legendOpen }: {
       </IconButton>
       <div className="flex items-center gap-2 px-2" title="Separar estructuras">
         <Expand className="size-4 text-mist-400" aria-hidden />
-        <input type="range" min={0} max={1} step={0.01} value={view.explode} onChange={(e) => V().patch(escenaId, { explode: Number(e.target.value) })} aria-label="Separar estructuras" className="w-20 accent-cyan-400 sm:w-24" />
+        <input type="range" min={0} max={1} step={0.01} value={view.explode} onChange={(e) => V().patch(escenaId, { explode: Number(e.target.value) })} aria-label="Separar estructuras" className="w-16 accent-cyan-400 sm:w-24" />
       </div>
       <span className="mx-1 h-6 w-px bg-white/10" aria-hidden />
       <div className="relative">
@@ -56,9 +56,9 @@ export function ViewerToolbar({ model, escenaId, onToggleLegend, legendOpen }: {
           </div>
         )}
       </div>
-      <IconButton label="Rotación automática" active={autoRotar} onClick={() => V().set({ autoRotar: !autoRotar })}>
+      <span className="hidden md:contents"><IconButton label="Rotación automática" active={autoRotar} onClick={() => V().set({ autoRotar: !autoRotar })}>
         <Rotate3d className="size-4" />
-      </IconButton>
+      </IconButton></span>
       <IconButton label="Etiquetas" active={etiquetas} onClick={() => V().set({ etiquetas: !etiquetas })}>
         <Tags className="size-4" />
       </IconButton>
@@ -70,16 +70,16 @@ export function ViewerToolbar({ model, escenaId, onToggleLegend, legendOpen }: {
       <IconButton label="Restablecer la vista" onClick={() => (V().reset(escenaId), useSession.getState().select(undefined))}>
         <RotateCcw className="size-4" />
       </IconButton>
-      <span className="mx-1 h-6 w-px bg-white/10" aria-hidden />
+      <span className="hidden md:contents"><span className="mx-1 h-6 w-px bg-white/10" aria-hidden />
       <IconButton label="Alejar" onClick={() => V().zoom(1.25)}>
         <Minus className="size-4" />
       </IconButton>
-      <span className="w-12 text-center text-[12px] tabular-nums text-mist-300" aria-live="polite">
+      <span className="w-12 text-center md:inline text-[12px] tabular-nums text-mist-300" aria-live="polite">
         {zoomPct}%
       </span>
       <IconButton label="Acercar" onClick={() => V().zoom(0.8)}>
         <Plus className="size-4" />
-      </IconButton>
+      </IconButton></span>
     </div>
   );
 }

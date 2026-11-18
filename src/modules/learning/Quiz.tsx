@@ -7,13 +7,14 @@ import { buildLocalQuiz, gradeOpenLocal } from '../../engines/education-engine';
 import { useAI } from '../../stores/ai';
 import { AfirmacionView } from '../../components/AfirmacionView';
 import { Badge, Button, Empty, Progress, cx } from '../../components/ui';
+import { iaNombre } from '../../stores/ai';
 
 type Answer = { choice?: number; text?: string; grade?: OpenGrade; grading?: boolean };
 
 export function Quiz({ plan, doc, temaId, mode }: { plan: StudyPlan; doc: DocumentModel; temaId?: string; mode: 'practica' | 'evaluacion' }) {
   const aiOn = useAI((s) => s.status === 'conectado');
   const [qs, setQs] = useState<GeneratedQuestion[] | null>(null);
-  const [origin, setOrigin] = useState<'local' | 'claude'>('local');
+  const [origin, setOrigin] = useState<'local' | 'ia'>('local');
   const [answers, setAnswers] = useState<Record<number, Answer>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -29,9 +30,9 @@ export function Quiz({ plan, doc, temaId, mode }: { plan: StudyPlan; doc: Docume
     if (useAI_) {
       setLoading(true);
       try {
-        const r = await useAI.getState().claude!.generateQuestions(doc, plan, temaId, count);
+        const r = await useAI.getState().ia!.generateQuestions(doc, plan, temaId, count);
         setQs(r);
-        setOrigin('claude');
+        setOrigin('ia');
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -50,7 +51,7 @@ export function Quiz({ plan, doc, temaId, mode }: { plan: StudyPlan; doc: Docume
     if (aiOn) {
       setAnswers((s) => ({ ...s, [idx]: { ...a, grading: true } }));
       try {
-        const g = await useAI.getState().claude!.gradeOpen(q.pregunta, q.respuestaModelo.texto, a.text);
+        const g = await useAI.getState().ia!.gradeOpen(q.pregunta, q.respuestaModelo.texto, a.text);
         setAnswers((s) => ({ ...s, [idx]: { ...a, grading: false, grade: g } }));
       } catch (e) {
         setAnswers((s) => ({ ...s, [idx]: { ...a, grading: false, grade: { ...gradeOpenLocal(q.respuestaModelo.texto, a.text!), comentario: `No se pudo usar la IA (${e instanceof Error ? e.message : e}). Evaluación aproximada por palabras clave.` } } }));
@@ -72,7 +73,7 @@ export function Quiz({ plan, doc, temaId, mode }: { plan: StudyPlan; doc: Docume
           </Button>
           {aiOn && (
             <Button variant="primary" loading={loading} icon={<Sparkles className="size-4" />} onClick={() => start(true)}>
-              Generar con Claude
+              Generar con {iaNombre()}
             </Button>
           )}
         </div>
@@ -95,7 +96,7 @@ export function Quiz({ plan, doc, temaId, mode }: { plan: StudyPlan; doc: Docume
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div className="glass sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-2xl p-3">
-        <Badge tone={origin === 'claude' ? 'gen' : 'doc'}>{origin === 'claude' ? 'Preguntas generadas por Claude' : 'Preguntas construidas con el texto del documento'}</Badge>
+        <Badge tone={origin === 'ia' ? 'gen' : 'doc'}>{origin === 'ia' ? `Preguntas generadas por ${iaNombre()}` : 'Preguntas construidas con el texto del documento'}</Badge>
         <span className="text-[13px] text-mist-300">
           {answered}/{qs.length} respondidas
         </span>
@@ -166,7 +167,7 @@ export function Quiz({ plan, doc, temaId, mode }: { plan: StudyPlan; doc: Docume
                 <textarea value={a.text ?? ''} onChange={(e) => setAnswers((s) => ({ ...s, [i]: { ...a, text: e.target.value } }))} disabled={Boolean(a.grade)} rows={3} placeholder="Escribe tu respuesta…" className="w-full rounded-2xl border border-white/10 bg-ink-950/60 p-3 text-sm text-white placeholder:text-mist-400 focus:border-accent/50 focus:outline-none" aria-label={`Respuesta a la pregunta ${i + 1}`} />
                 {!a.grade && (
                   <Button size="sm" variant="soft" loading={a.grading} disabled={!a.text?.trim()} onClick={() => grade(i)}>
-                    {aiOn ? 'Corregir con Claude' : 'Corregir'}
+                    {aiOn ? `Corregir con ${iaNombre()}` : 'Corregir'}
                   </Button>
                 )}
                 {a.grade && (

@@ -5,6 +5,7 @@ import { useAI } from '../stores/ai';
 import { useUI } from '../stores/ui';
 import { UploadZone } from '../modules/documents/UploadZone';
 import { MaterialCard } from '../modules/documents/MaterialCard';
+import { iaNombre } from '../stores/ai';
 
 const CAPACIDADES = [
   { icon: Brain, t: 'Anatomía', d: 'Cerebro, corazón, pelvis, útero gestante' },
@@ -89,9 +90,9 @@ export function DashboardPage() {
                 <h2 className="mb-2 flex items-center gap-2 font-display text-lg text-white">
                   <Sparkles className="size-5 text-purple-300" /> IA opcional
                 </h2>
-                <p className="text-[13px] leading-relaxed text-mist-300">El análisis básico funciona sin servicios de IA. Para fichas detalladas, tutor con respuestas redactadas y preguntas generadas, conecta Claude con tu propia clave.</p>
+                <p className="text-[13px] leading-relaxed text-mist-300">El análisis básico funciona sin servicios de IA. Para fichas detalladas, tutor con respuestas redactadas y preguntas generadas, conecta Claude o ChatGPT con tu propia clave.</p>
                 <button onClick={() => useUI.getState().set({ aiSettings: true })} className="mt-3 inline-flex items-center gap-2 text-[13px] text-accent hover:underline">
-                  <KeyRound className="size-3.5" /> {aiStatus === 'conectado' ? 'Claude conectado' : 'Configurar IA'}
+                  <KeyRound className="size-3.5" /> {aiStatus === 'conectado' ? `${iaNombre()} conectado` : 'Configurar IA'}
                 </button>
               </div>
             </div>

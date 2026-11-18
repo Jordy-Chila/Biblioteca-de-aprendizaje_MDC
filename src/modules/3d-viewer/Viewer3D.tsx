@@ -17,6 +17,8 @@ interface Props {
 }
 
 const tmpTarget = new THREE.Vector3();
+/** Tamaño real del lienzo (se actualiza desde CameraRig); camera.aspect puede ir un fotograma por detrás. */
+const useThreeSize = { w: 0, h: 0 };
 
 /** Posición de cámara que encaja el modelo completo, en la dirección indicada (o la inicial del modelo). */
 function fitView(model: ModelDef, scene: THREE.Scene, camera: THREE.PerspectiveCamera, from?: V3): { position: V3; target: V3; dist: number } | null {
@@ -25,10 +27,13 @@ function fitView(model: ModelDef, scene: THREE.Scene, camera: THREE.PerspectiveC
   const box = new THREE.Box3().setFromObject(root);
   if (box.isEmpty()) return null;
   // incluir las etiquetas (con un margen para su texto) para que ninguna quede fuera de la pantalla
-  for (const p of model.parts) if (p.labelAt && p.selectable !== false) box.expandByPoint(new THREE.Vector3(p.labelAt[0] * 1.08, p.labelAt[1] + 0.15, p.labelAt[2]));
+  const portrait = useThreeSize.h > 0 && useThreeSize.w / useThreeSize.h < 0.8;
+  // en vertical (teléfono) las etiquetas laterales cuentan menos para que el modelo no quede diminuto
+  for (const p of model.parts) if (p.labelAt && p.selectable !== false) box.expandByPoint(new THREE.Vector3(p.labelAt[0] * (portrait ? 0.62 : 1.08), p.labelAt[1] + 0.15, p.labelAt[2] * (portrait ? 0.62 : 1)));
   const sphere = box.getBoundingSphere(new THREE.Sphere());
   const fovV = THREE.MathUtils.degToRad(camera.fov);
-  const fovH = 2 * Math.atan(Math.tan(fovV / 2) * camera.aspect);
+  const aspect = useThreeSize.h > 0 ? useThreeSize.w / useThreeSize.h : camera.aspect;
+  const fovH = 2 * Math.atan(Math.tan(fovV / 2) * aspect);
   const dist = (sphere.radius / Math.sin(Math.min(fovV, fovH) / 2)) * 0.86;
   const dir = new THREE.Vector3(...(from ?? model.camera.position)).sub(new THREE.Vector3(...model.camera.target)).normalize();
   const c = sphere.center;
@@ -36,7 +41,9 @@ function fitView(model: ModelDef, scene: THREE.Scene, camera: THREE.PerspectiveC
 }
 
 function CameraRig({ model, escenaId }: { model: ModelDef; escenaId: string }) {
-  const { camera, controls, scene } = useThree() as unknown as { camera: THREE.PerspectiveCamera; controls: OrbitControlsImpl | null; scene: THREE.Scene };
+  const { camera, controls, scene, size } = useThree() as unknown as { camera: THREE.PerspectiveCamera; controls: OrbitControlsImpl | null; scene: THREE.Scene; size: { width: number; height: number } };
+  useThreeSize.w = size.width;
+  useThreeSize.h = size.height;
   const fitRaf = useRef(0);
   const anim = useRef<{ fromP: THREE.Vector3; toP: THREE.Vector3; fromT: THREE.Vector3; toT: THREE.Vector3; t: number } | null>(null);
   const baseDist = useRef(10);
@@ -89,7 +96,21 @@ function CameraRig({ model, escenaId }: { model: ModelDef; escenaId: string }) {
       controls.removeEventListener('change', zoomPct);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [escenaId, model, controls]);
+  }, [escenaId, model, controls, size.width > size.height]);
+
+  // Si cambia el tamaño del lienzo y el usuario no ha movido la cámara, volver a encajar el modelo
+  useEffect(() => {
+    if (!controls || useViewer.getState().view(escenaId).camera) return;
+    const id = requestAnimationFrame(() => {
+      const fit = fitView(model, scene, camera);
+      if (fit) {
+        baseDist.current = fit.dist;
+        flyTo(fit.position, fit.target, true);
+      }
+    });
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size.width, size.height]);
 
   useEffect(() => {
     if (!cameraRequest || cameraRequest.escenaId !== escenaId || !controls) return;
@@ -150,7 +171,7 @@ export function Viewer3D({ model, escenaId, seleccionId, onSelect, onDeselect }:
   return (
     <Canvas
       shadows
-      dpr={[1, 2]}
+      dpr={[1, typeof window !== 'undefined' && window.innerWidth < 768 ? 1.5 : 2]}
       camera={{ position: model.camera.position, fov: 42, near: 0.05, far: 300 }}
       gl={{ antialias: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' }}
       onPointerMissed={(e) => {
