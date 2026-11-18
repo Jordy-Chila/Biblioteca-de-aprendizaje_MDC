@@ -52,12 +52,7 @@ export function planScenes(doc: DocumentModel, plan: StudyPlan): Escena[] {
   const add = (temaId: string, entry: CatalogEntry, titulo: string, confianza: number, params: Record<string, unknown> = {}) =>
     escenas.push({ id: `${temaId}::${entry.id}::${escenas.length}`, temaId, sceneTypeId: entry.id, titulo, confianza, params });
 
-  // Vista general del documento
-  add(DOC_TOPIC, jerarquia, 'Mapa del documento', 0);
-  if (plan.eventos.length >= 3) add(DOC_TOPIC, lineaTiempo, 'Línea de tiempo del documento', 0);
-  const docModels = matchDomainModels(topicText(doc, plan), { plan, doc }, 3);
-  docModels.forEach((m) => add(DOC_TOPIC, m.entry, m.entry.titulo, m.score, m.params));
-
+  // Sin vista general del documento: cada tema muestra solo lo suyo, para no saturar al estudiante.
   const roots = plan.temas.filter((t) => t.nivel === 1);
   for (const tema of roots) {
     const sub = subtree(tema.id, plan.temas);

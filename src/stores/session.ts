@@ -126,7 +126,7 @@ export const useSession = create<SessionState>()((set, get) => ({
   openDoc: (docId, temaId, page = 'explorer') => {
     const plan = get().plans[docId];
     if (!plan) return;
-    const t = temaId ?? DOC_TOPIC;
+    const t = temaId && temaId !== DOC_TOPIC ? temaId : (plan.temas.find((x) => x.nivel === 1)?.id ?? DOC_TOPIC);
     set({ activeDocId: docId, page, selection: undefined });
     get().openTema(t);
   },

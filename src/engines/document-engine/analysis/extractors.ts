@@ -63,11 +63,14 @@ export function extractQuestions(doc: DocumentModel, temas: Tema[]): Pregunta[] 
 
 const ALERT = /signos? de alarma|se[ñn]ales? de alarma|urgente|urgencia|emergencia|peligro|advertencia|precauci[oó]n|warning|danger/i;
 
+/** Avisos legales («esta guía no sustituye…») y casillas de repaso: mencionan la alarma pero no son un aviso. */
+const NOT_ALERT = /no sustituye|no reemplaza|fines? (educativos?|informativos?)|^\s*[☐☑☒□■✓✔]/i;
+
 /** Avisos de seguridad: se conservan íntegros. */
 export function extractAlerts(doc: DocumentModel): Afirmacion[] {
   const out: Afirmacion[] = [];
   for (const b of doc.blocks) {
-    if (b.type === 'heading' || !ALERT.test(b.text)) continue;
+    if (b.type === 'heading' || !ALERT.test(b.text) || NOT_ALERT.test(b.text)) continue;
     if (b.type === 'table' && b.rows) {
       for (const r of b.rows) if (ALERT.test(r.join(' '))) out.push(fromBlock(r.join(': '), b.id, r.join(' | ')));
     } else out.push(fromBlock(b.text, b.id));

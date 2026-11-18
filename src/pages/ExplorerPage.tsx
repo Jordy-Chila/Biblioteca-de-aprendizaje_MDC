@@ -126,7 +126,7 @@ export function ExplorerPage() {
             <div className="pointer-events-auto flex items-center gap-2">
               <button onClick={() => useUI.getState().set({ sidebarOpen: true })} className="glass flex h-10 min-w-0 flex-1 items-center gap-2 rounded-2xl px-3 text-left">
                 <ListTree className="size-4 shrink-0 text-accent" />
-                <span className="min-w-0 flex-1 truncate text-[13px] text-white">{temaId === DOC_TOPIC ? 'Vista general del documento' : tema?.titulo}</span>
+                <span className="min-w-0 flex-1 truncate text-[13px] text-white">{tema?.titulo ?? plan.dominio.tema}</span>
                 <ChevronDown className="size-4 shrink-0 text-mist-400" />
               </button>
               {tema && (

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BookMarked, ChevronRight, Network, AlertTriangle } from 'lucide-react';
+import { BookMarked, ChevronRight } from 'lucide-react';
 import { useSession } from '../../stores/session';
 import { cx } from '../../components/ui';
 import { DOC_TOPIC } from '../../engines/visualization-engine';
@@ -50,21 +50,16 @@ export function TopicNav() {
         </p>
       </div>
       <div className="-mx-1 flex-1 space-y-0.5 overflow-y-auto px-1 pb-4">
-        <button onClick={() => openTema(DOC_TOPIC)} className={cx('flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[13px] transition', activeTema === DOC_TOPIC ? 'bg-accent/12 text-white ring-1 ring-accent/30' : 'text-mist-200 hover:bg-white/5')}>
-          <Network className="size-4 text-accent" /> Vista general del documento
-        </button>
         {roots.map((t) => {
           // solo los subtemas con una vista propia del modelo (aspectos secuenciales del tema)
           const subs = plan.escenas.filter((e) => e.temaId === t.id && typeof e.params.subtemaId === 'string').map((e) => ({ id: e.params.subtemaId as string, escenaId: e.id, titulo: e.titulo }));
           const p = topicProgress(plan, t, vistos);
           const active = activeTema === t.id;
-          const hasAlert = plan.alertas.some((a) => a.blockId && subtree(t.id, plan.temas).size && plan.temas.filter((x) => subtree(t.id, plan.temas).has(x.id)).some((x) => x.blockIds.includes(a.blockId!)));
           return (
             <div key={t.id}>
               <div className={cx('group flex items-center rounded-xl transition', active ? 'bg-accent/12 ring-1 ring-accent/30' : 'hover:bg-white/5')}>
                 <button onClick={() => openTema(t.id)} className="min-w-0 flex-1 px-3 py-2 text-left">
                   <span className={cx('block truncate text-[13px]', active ? 'text-white' : visitados[t.id] ? 'text-mist-200' : 'text-mist-300')}>
-                    {hasAlert && <AlertTriangle className="mr-1 inline size-3 text-orange-300" aria-label="Contiene signos de alarma" />}
                     {t.titulo}
                   </span>
                   {p.total > 0 && (
