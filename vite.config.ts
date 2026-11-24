@@ -7,6 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   base: './',
   plugins: [react(), tailwindcss()],
+  // En desarrollo, MedlinePlus (sin CORS) se consulta a través de este proxy; en la app de escritorio, por IPC.
+  server: { proxy: { '/proxy/medlineplus': { target: 'https://wsearch.nlm.nih.gov', changeOrigin: true, rewrite: (p: string) => p.replace(/^\/proxy\/medlineplus/, '') } } },
   build: {
     chunkSizeWarningLimit: 1500,
     rollupOptions: {

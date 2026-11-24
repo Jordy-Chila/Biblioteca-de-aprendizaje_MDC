@@ -1,42 +1,155 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bot, Send, Sparkles, Trash2, X, FileSearch, Info } from 'lucide-react';
+import { Bot, Send, Trash2, X, FileSearch, Info, Stethoscope, BookOpen, Microscope, ShieldCheck } from 'lucide-react';
 import { useUI } from '../../stores/ui';
 import { useAI, type TutorEntry } from '../../stores/ai';
 import { useSession } from '../../stores/session';
 import { AfirmacionView } from '../../components/AfirmacionView';
 import { Button, IconButton, Spinner, cx } from '../../components/ui';
-import type { TutorScope } from '../../services/ai/types';
+import type { TutorAnswer, TutorScope } from '../../services/ai/types';
+import type { Afirmacion } from '../../types/plan';
+import { localProvider } from '../../services/ai/localProvider';
+import { buscarPasajes } from '../../services/wiki/medLibrary';
+import { consultarFuentes, type Articulo, type ConsultaEnLinea } from '../../services/medical/sources';
 import { EMPTY_ARR } from '../../utils/empty';
-import { iaNombre } from '../../stores/ai';
 
 let seq = 0;
 
-export async function askTutor(docId: string, scope: TutorScope, question: string) {
+/** Clave de conversación cuando no hay ningún material abierto (solo biblioteca). */
+export const SIN_DOC = '__biblioteca__';
+
+/**
+ * Tutor sin IA.
+ * - Con internet: responde con MedlinePlus (explicación), PubMed (investigaciones) y Cochrane (evidencia sobre tratamientos).
+ * - Wikipedia / biblioteca descargada: opcional para datos específicos, o como respaldo si no hay conexión o no hay resultados.
+ * - Siempre muestra primero lo que dice tu documento, si hay uno abierto.
+ */
+export async function askTutor(docId: string | undefined, scope: TutorScope, question: string) {
   const S = useSession.getState();
-  const doc = S.documents[docId];
-  const plan = S.plans[docId];
-  if (!doc || !plan) return;
+  const doc = docId ? S.documents[docId] : undefined;
+  const plan = docId ? S.plans[docId] : undefined;
+  const key = docId ?? SIN_DOC;
   const ai = useAI.getState();
-  const provider = ai.provider();
-  const history = (ai.tutor[docId] ?? []).filter((e) => !e.pending && !e.error).map((e) => ({ role: e.role, text: e.role === 'user' ? e.text : (e.answer?.documento.map((a) => a.texto).join(' ') ?? '') }));
   const uid = `t${++seq}`;
   const aid = `t${++seq}`;
-  ai.pushTutor(docId, { id: uid, role: 'user', text: question, scope, proveedor: provider.id });
-  ai.pushTutor(docId, { id: aid, role: 'assistant', text: '', scope, pending: true, proveedor: provider.id });
+  ai.pushTutor(key, { id: uid, role: 'user', text: question, scope, proveedor: 'local' });
+  ai.pushTutor(key, { id: aid, role: 'assistant', text: '', scope, pending: true, proveedor: 'local' });
   try {
-    const answer = await provider.ask(doc, plan, scope, question, history);
-    useAI.getState().patchTutor(docId, aid, { pending: false, answer });
+    const base = doc && plan ? await localProvider.ask(doc, plan, scope, question, []) : { documento: [], adicional: [], insuficiente: false };
+    const contexto = `${scope.nombres?.join(' ') ?? ''} ${scope.tipo === 'concepto' || scope.tipo === 'pieza' ? scope.titulo : ''}`.trim();
+    const online = navigator.onLine;
+    let enLinea: ConsultaEnLinea | undefined;
+    if (online) {
+      try {
+        enLinea = await consultarFuentes(question, contexto);
+      } catch {
+        enLinea = undefined;
+      }
+    }
+    const sinFuentes = !enLinea || (!enLinea.medline.length && !enLinea.pubmed.length && !enLinea.cochrane.length);
+    const usarWiki = useUI.getState().tutorWikipedia || !online || sinFuentes;
+    const adicional: Afirmacion[] = [];
+    if (usarWiki) {
+      const pasajes = await buscarPasajes(`${question} ${contexto}`, 2);
+      adicional.push(...pasajes.map((p) => ({ texto: p.texto, origen: 'complementario' as const, fuentes: [{ titulo: `Wikipedia (descargada) · ${p.articulo.titulo}${p.seccion ? ` › ${p.seccion}` : ''}`, url: p.articulo.url }] })));
+    }
+    const nota = !online
+      ? 'Sin conexión: no se pudo consultar MedlinePlus, PubMed ni Cochrane. Se muestra tu documento y la biblioteca descargada.'
+      : enLinea?.errores.length
+        ? `No respondió: ${enLinea.errores.join(', ')}. Se muestran las demás fuentes.`
+        : 'Información educativa: no sustituye la consulta con un profesional de la salud.';
+    const answer: TutorAnswer = { documento: base.documento, adicional, enLinea, insuficiente: !base.documento.length && !adicional.length && sinFuentes, nota };
+    useAI.getState().patchTutor(key, aid, { pending: false, answer });
   } catch (e) {
-    useAI.getState().patchTutor(docId, aid, { pending: false, error: e instanceof Error ? e.message : String(e) });
+    useAI.getState().patchTutor(key, aid, { pending: false, error: e instanceof Error ? e.message : String(e) });
   }
+}
+
+function ArticuloView({ a }: { a: Articulo }) {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <li className="rounded-xl bg-white/4 p-2.5">
+      <a href={a.url} target="_blank" rel="noreferrer" className="text-[13px] text-white hover:text-accent hover:underline">
+        {a.titulo}
+      </a>
+      <p className="text-[11px] text-mist-400">
+        {a.revista} · {a.anio} · PMID {a.pmid}
+      </p>
+      {a.resumen && (
+        <>
+          <button onClick={() => setAbierto(!abierto)} className="mt-1 text-[11px] text-accent hover:underline">
+            {abierto ? 'Ocultar resumen' : 'Ver resumen (en inglés)'}
+          </button>
+          {abierto && <p className="mt-1 text-[12px] leading-relaxed text-mist-300">{a.resumen}</p>}
+        </>
+      )}
+    </li>
+  );
+}
+
+function FuentesEnLinea({ c }: { c: ConsultaEnLinea }) {
+  return (
+    <>
+      {c.medline.length > 0 && (
+        <div className="space-y-2.5 rounded-2xl border border-sky-400/25 bg-sky-400/5 p-3">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-300">
+            <BookOpen className="size-3.5" /> Para comprender · MedlinePlus
+          </p>
+          {c.medline.slice(0, 1).map((m) => (
+            <div key={m.url} className="space-y-1.5">
+              <p className="text-[13px] font-medium text-white">{m.titulo}</p>
+              <p className="whitespace-pre-line text-[13px] leading-relaxed text-mist-200">{m.fragmento}</p>
+              <a href={m.url} target="_blank" rel="noreferrer" className="inline-block text-[11px] text-sky-300 hover:underline">
+                Leer completo en MedlinePlus →
+              </a>
+            </div>
+          ))}
+          {c.medline.length > 1 && (
+            <p className="text-[11px] text-mist-400">
+              También:{' '}
+              {c.medline.slice(1).map((m) => (
+                <a key={m.url} href={m.url} target="_blank" rel="noreferrer" className="text-sky-300 hover:underline">
+                  {m.titulo}
+                </a>
+              ))}
+            </p>
+          )}
+        </div>
+      )}
+      {c.pubmed.length > 0 && (
+        <div className="space-y-2 rounded-2xl border border-violet-400/25 bg-violet-400/5 p-3">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-300">
+            <Microscope className="size-3.5" /> Investigaciones que lo respaldan · PubMed
+          </p>
+          <ul className="space-y-2">
+            {c.pubmed.map((a) => (
+              <ArticuloView key={a.pmid} a={a} />
+            ))}
+          </ul>
+        </div>
+      )}
+      {c.cochrane.length > 0 && (
+        <div className="space-y-2 rounded-2xl border border-amber-400/25 bg-amber-400/5 p-3">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-300">
+            <ShieldCheck className="size-3.5" /> Evidencia sobre tratamientos · Cochrane
+          </p>
+          <ul className="space-y-2">
+            {c.cochrane.map((a) => (
+              <ArticuloView key={a.pmid} a={a} />
+            ))}
+          </ul>
+        </div>
+      )}
+      {c.terminoEn && (c.pubmed.length > 0 || c.cochrane.length > 0) && <p className="text-[11px] text-mist-500">Búsqueda científica con el término «{c.terminoEn}».</p>}
+    </>
+  );
 }
 
 function Answer({ e }: { e: TutorEntry }) {
   if (e.pending)
     return (
       <p className="flex items-center gap-2 text-[13px] text-mist-400">
-        <Spinner /> {e.proveedor !== 'local' ? `${iaNombre()} está consultando el documento…` : 'Buscando en el documento…'}
+        <Spinner /> Consultando MedlinePlus, PubMed y Cochrane…
       </p>
     );
   if (e.error) return <p className="text-[13px] text-rose-300">{e.error}</p>;
@@ -46,21 +159,24 @@ function Answer({ e }: { e: TutorEntry }) {
       {a.documento.length > 0 && (
         <div className="space-y-2.5">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
-            <FileSearch className="size-3.5" /> {e.proveedor !== 'local' ? 'Según el documento' : 'Fragmentos relacionados del documento'}
+            <FileSearch className="size-3.5" /> Según tu documento
           </p>
           {a.documento.map((x, i) => (
             <AfirmacionView key={i} a={x} compact />
           ))}
         </div>
       )}
+      {a.enLinea && <FuentesEnLinea c={a.enLinea} />}
       {a.insuficiente && (
         <p className="flex items-start gap-2 rounded-xl bg-orange-400/10 p-2.5 text-[13px] text-orange-200">
-          <Info className="mt-0.5 size-4 shrink-0" /> El documento no contiene información suficiente para responder esta pregunta.
+          <Info className="mt-0.5 size-4 shrink-0" /> No encontré información sobre esto. Prueba con otras palabras (por ejemplo, el nombre de la enfermedad o del órgano).
         </p>
       )}
       {a.adicional.length > 0 && (
-        <div className="space-y-2.5 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-300">Información adicional (no está en el documento)</p>
+        <div className="space-y-2.5 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-3">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
+            <Stethoscope className="size-3.5" /> Datos específicos · Wikipedia
+          </p>
           {a.adicional.map((x, i) => (
             <AfirmacionView key={i} a={x} compact />
           ))}
@@ -77,11 +193,12 @@ export function TutorDrawer() {
   const draft = useUI((s) => s.tutorDraft);
   const docId = useSession((s) => s.activeDocId);
   const plan = useSession((s) => (docId ? s.plans[docId] : undefined));
-  const entries = useAI((s) => (docId ? s.tutor[docId] ?? EMPTY_ARR : EMPTY_ARR));
-  const aiOn = useAI((s) => s.status === 'conectado');
+  const key = docId ?? SIN_DOC;
+  const entries = useAI((s) => s.tutor[key] ?? EMPTY_ARR);
   const [q, setQ] = useState('');
+  const wiki = useUI((s) => s.tutorWikipedia);
   const list = useRef<HTMLDivElement>(null);
-  const effScope: TutorScope = scope ?? { tipo: 'documento', titulo: plan?.dominio.tema ?? 'Documento' };
+  const effScope: TutorScope = scope ?? { tipo: 'documento', titulo: plan?.dominio.tema ?? 'Biblioteca médica' };
 
   useEffect(() => {
     if (draft) setQ(draft);
@@ -91,13 +208,13 @@ export function TutorDrawer() {
   }, [entries.length, entries[entries.length - 1]?.pending]);
 
   const send = () => {
-    if (!docId || !q.trim()) return;
+    if (!q.trim()) return;
     void askTutor(docId, effScope, q.trim());
     setQ('');
     useUI.getState().set({ tutorDraft: undefined });
   };
 
-  const scopes: TutorScope[] = [{ tipo: 'documento', titulo: plan?.dominio.tema ?? 'Documento' }];
+  const scopes: TutorScope[] = [{ tipo: 'documento', titulo: plan?.dominio.tema ?? 'Biblioteca médica' }];
   if (scope && scope.tipo !== 'documento') scopes.unshift(scope);
 
   return (
@@ -110,10 +227,10 @@ export function TutorDrawer() {
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="font-display text-[15px] text-white">Tutor</h2>
-              <p className="truncate text-[12px] text-mist-400">{aiOn ? `${iaNombre()} · responde basándose en tu documento` : 'Modo local · muestra fragmentos del documento'}</p>
+              <p className="truncate text-[12px] text-mist-400">MedlinePlus · PubMed · Cochrane (requiere internet)</p>
             </div>
-            {docId && entries.length > 0 && (
-              <IconButton label="Borrar conversación" onClick={() => useAI.getState().clearTutor(docId)}>
+            {entries.length > 0 && (
+              <IconButton label="Borrar conversación" onClick={() => useAI.getState().clearTutor(key)}>
                 <Trash2 className="size-4" />
               </IconButton>
             )}
@@ -123,18 +240,15 @@ export function TutorDrawer() {
           </header>
 
           <div ref={list} className="flex-1 space-y-4 overflow-y-auto p-4">
-            {!docId && <p className="text-sm text-mist-400">Abre un material para hacer preguntas.</p>}
-            {docId && entries.length === 0 && (
+            {entries.length === 0 && (
               <div className="space-y-3 text-[13px] text-mist-300">
-                <p>Pregunta sobre el documento completo, un tema, un concepto o la estructura que tengas seleccionada. Las respuestas se basan primero en tu material y separan claramente la información adicional.</p>
-                {!aiOn && (
-                  <p className="rounded-xl bg-white/4 p-3 text-mist-400">
-                    Ahora mismo no hay IA externa: verás los fragmentos del documento que mejor responden a tu pregunta.{' '}
-                    <button className="text-accent hover:underline" onClick={() => useUI.getState().set({ aiSettings: true })}>
-                      Conectar IA
-                    </button>
-                  </p>
-                )}
+                <p>{docId ? 'Pregunta sobre tu material o sobre cualquier tema de salud.' : 'Pregunta sobre cualquier tema de salud.'} Con internet, el tutor consulta:</p>
+                <ul className="space-y-1.5 rounded-xl bg-white/4 p-3 text-[12px]">
+                  <li><span className="text-sky-300">MedlinePlus</span>: para aprender y comprender el tema.</li>
+                  <li><span className="text-violet-300">PubMed</span>: investigaciones científicas que respaldan la información.</li>
+                  <li><span className="text-amber-300">Cochrane</span>: revisiones de evidencia sobre tratamientos.</li>
+                </ul>
+                <p className="text-[12px] text-mist-400">{docId ? 'Primero verás lo que dice tu documento. ' : ''}Wikipedia es opcional para datos específicos (actívala abajo) y se usa automáticamente si no hay conexión.</p>
               </div>
             )}
             {entries.map((e) =>
@@ -152,6 +266,10 @@ export function TutorDrawer() {
           </div>
 
           <footer className="border-t border-white/6 p-3">
+            <label className="mb-2 flex items-center gap-2 text-[11px] text-mist-400">
+              <input type="checkbox" checked={wiki} onChange={(e) => useUI.getState().set({ tutorWikipedia: e.target.checked })} />
+              Incluir Wikipedia (datos específicos)
+            </label>
             <div className="mb-2 flex flex-wrap gap-1.5">
               {scopes.map((s, i) => (
                 <button key={i} onClick={() => useUI.getState().set({ tutorScope: s })} className={cx('rounded-full border px-2.5 py-1 text-[11px] transition', effScope.titulo === s.titulo && effScope.tipo === s.tipo ? 'border-purple-300/50 bg-purple-400/10 text-purple-200' : 'border-white/10 text-mist-400 hover:text-white')}>
@@ -180,8 +298,8 @@ export function TutorDrawer() {
                 aria-label="Pregunta para el tutor"
                 className="min-h-[44px] flex-1 resize-none rounded-xl border border-white/10 bg-ink-950/60 px-3 py-2.5 text-sm text-white placeholder:text-mist-400 focus:border-purple-300/50 focus:outline-none"
               />
-              <Button type="submit" variant="primary" disabled={!q.trim() || !docId} className="h-11 w-11 px-0" aria-label="Enviar pregunta">
-                {aiOn ? <Sparkles className="size-4" /> : <Send className="size-4" />}
+              <Button type="submit" variant="primary" disabled={!q.trim()} className="h-11 w-11 px-0" aria-label="Enviar pregunta">
+                <Send className="size-4" />
               </Button>
             </form>
           </footer>

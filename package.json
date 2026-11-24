@@ -8,10 +8,15 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "app": "node scripts/prepare-offline.mjs && vite build && electron .",
+    "app:dist": "node scripts/prepare-offline.mjs && vite build && electron-builder --win",
+    "prepare:offline": "node scripts/prepare-offline.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/space-grotesk": "^5.3.0",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "@react-three/postprocessing": "^2.19.1",
@@ -36,10 +41,38 @@
     "@types/react-dom": "^18.3.7",
     "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0",
     "jsdom": "^31.0.1",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
+  },
+  "main": "electron/main.cjs",
+  "description": "Laboratorio de estudio 3D",
+  "author": "SES",
+  "build": {
+    "appId": "com.ses.lab3d",
+    "productName": "SES Lab 3D",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "!node_modules/**"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
   }
 }

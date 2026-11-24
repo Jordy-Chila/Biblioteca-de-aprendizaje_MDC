@@ -1,12 +1,13 @@
 import { useEffect, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bot, Box, GraduationCap, Home, Layers3, RotateCcw, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Bot, Box, GraduationCap, Home, Layers3, RotateCcw, Sparkles, CheckCircle2, AlertCircle, Stethoscope } from 'lucide-react';
 import { useSession, type Page } from '../stores/session';
 import { useAI } from '../stores/ai';
 import { useUI } from '../stores/ui';
 import { useViewer } from '../stores/viewer';
 import { cx } from '../components/ui';
 import { iaNombre } from '../stores/ai';
+import { TimerPill } from '../modules/smart-study/TimerCard';
 
 function NavItem({ page, icon: Icon, label, disabled }: { page: Page; icon: typeof Home; label: string; disabled?: boolean }) {
   const current = useSession((s) => s.page);
@@ -50,7 +51,7 @@ function MobileNav({ hasDoc }: { hasDoc: boolean }) {
     { key: 'inicio', label: 'Inicio', icon: Home, on: page === 'dashboard' && !tutorOpen, action: () => (useUI.getState().set({ tutorOpen: false }), go('dashboard')) },
     { key: 'explorar', label: 'Explorar 3D', icon: Layers3, on: page === 'explorer' && !tutorOpen, disabled: !hasDoc, action: () => (useUI.getState().set({ tutorOpen: false }), go('explorer')) },
     { key: 'estudio', label: 'Estudio', icon: GraduationCap, on: page === 'study' && !tutorOpen, disabled: !hasDoc, action: () => (useUI.getState().set({ tutorOpen: false }), go('study')) },
-    { key: 'tutor', label: 'Tutor', icon: Bot, on: tutorOpen, disabled: !hasDoc, action: () => (tutorOpen ? useUI.getState().set({ tutorOpen: false }) : useUI.getState().openTutor()) },
+    { key: 'tutor', label: 'Tutor', icon: Bot, on: tutorOpen, action: () => (tutorOpen ? useUI.getState().set({ tutorOpen: false }) : useUI.getState().openTutor()) },
   ];
   return (
     <nav className="z-[57] flex shrink-0 border-t border-white/8 bg-ink-900/95 backdrop-blur-xl md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} aria-label="Secciones">
@@ -97,6 +98,15 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <NavItem page="study" icon={GraduationCap} label="Estudio" disabled={!hasDoc} />
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <TimerPill />
+          <button onClick={() => useUI.getState().openTutor()} className="hidden h-9 items-center gap-2 rounded-xl border border-purple-300/25 bg-purple-400/10 px-3 text-[12px] text-purple-200 transition hover:text-white md:inline-flex" title="Tutor (documento + biblioteca médica)">
+            <Bot className="size-3.5" />
+            Tutor
+          </button>
+          <button onClick={() => useUI.getState().set({ medLibrary: true })} className="inline-flex h-9 items-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-400/10 px-3 text-[12px] text-emerald-200 transition hover:text-white" title="Biblioteca médica (Wikipedia)">
+            <Stethoscope className="size-3.5" />
+            <span className="hidden sm:inline">Biblioteca médica</span>
+          </button>
           <button onClick={() => useUI.getState().set({ aiSettings: true })} className={cx('inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-[12px] transition', aiStatus === 'conectado' ? 'border-purple-300/30 bg-purple-400/10 text-purple-200' : 'border-white/10 text-mist-300 hover:text-white')}>
             <Sparkles className="size-3.5" />
             <span className="hidden sm:inline">{aiStatus === 'conectado' ? `${iaNombre()} conectado` : aiStatus === 'verificando' ? 'Verificando…' : 'IA: modo local'}</span>

@@ -4,6 +4,9 @@ import type { TutorScope } from '../services/ai/types';
 interface UIState {
   docRef?: { docId: string; blockId: string };
   aiSettings: boolean;
+  medLibrary: boolean;
+  /** El tutor también usa Wikipedia / biblioteca descargada (datos específicos). */
+  tutorWikipedia: boolean;
   tutorOpen: boolean;
   tutorScope?: TutorScope;
   tutorDraft?: string;
@@ -19,6 +22,8 @@ interface UIState {
 
 export const useUI = create<UIState>()((set, get) => ({
   aiSettings: false,
+  medLibrary: false,
+  tutorWikipedia: false,
   tutorOpen: false,
   sidebarOpen: false,
   set: (p) => set(p),

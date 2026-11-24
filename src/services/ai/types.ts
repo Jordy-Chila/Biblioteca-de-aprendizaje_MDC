@@ -26,6 +26,8 @@ export interface TutorAnswer {
   /** El documento no contiene información suficiente. */
   insuficiente: boolean;
   nota?: string;
+  /** Fuentes médicas consultadas en línea (MedlinePlus, PubMed, Cochrane). */
+  enLinea?: import('../medical/sources').ConsultaEnLinea;
 }
 
 export interface GeneratedQuestion {

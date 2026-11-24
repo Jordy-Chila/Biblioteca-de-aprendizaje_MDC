@@ -2,15 +2,21 @@ import type { RawBlock } from '../../../types/document';
 import { textToBlocks } from './text';
 
 /**
- * OCR en el navegador con Tesseract.js. Descarga el motor y los datos de idioma
- * (español + inglés, ~10 MB) desde el CDN público de Tesseract la primera vez: requiere conexión.
+ * OCR con Tesseract.js. El motor y los datos de idioma (español + inglés) vienen incluidos
+ * en la aplicación (public/tesseract, preparados por scripts/prepare-offline.mjs): funciona sin conexión.
  */
 export async function ocrImage(
   data: Blob | ArrayBuffer,
   onProgress?: (p: number, msg: string) => void,
 ): Promise<{ blocks: RawBlock[]; confidence: number }> {
   const { createWorker } = await import('tesseract.js');
+  const base = new URL('./tesseract/', document.baseURI).href;
   const worker = await createWorker(['spa', 'eng'], 1, {
+    workerPath: `${base}worker.min.js`,
+    corePath: `${base}core`,
+    langPath: `${base}lang`,
+    gzip: true,
+    workerBlobURL: false,
     logger: (m: { status: string; progress: number }) => {
       const label =
         m.status === 'recognizing text' ? 'Reconociendo texto' : m.status.includes('load') ? 'Cargando motor de OCR' : 'Preparando OCR';

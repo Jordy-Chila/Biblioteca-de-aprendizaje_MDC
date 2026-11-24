@@ -5,6 +5,8 @@ import { StudyPage } from '../pages/StudyPage';
 import { AISettingsModal } from '../modules/ai-analysis/AISettingsModal';
 import { TutorDrawer } from '../modules/ai-tutor/TutorDrawer';
 import { DocRefModal } from '../modules/documents/DocRefModal';
+import { StudyTimerWatcher } from '../modules/smart-study/TimerCard';
+import { MedLibraryModal } from '../modules/documents/MedLibraryModal';
 import { useSession } from '../stores/session';
 import { useLeaveWarning } from '../hooks/useLeaveWarning';
 import { Spinner } from '../components/ui';
@@ -38,6 +40,8 @@ export default function App() {
       <AISettingsModal />
       <TutorDrawer />
       <DocRefModal />
+      <MedLibraryModal />
+      <StudyTimerWatcher />
     </AppLayout>
   );
 }

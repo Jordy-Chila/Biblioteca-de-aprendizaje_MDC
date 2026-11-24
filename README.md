@@ -34,6 +34,32 @@ npm run build      # genera dist/
 
 En pantallas de menos de 768 px la interfaz cambia a una versión móvil: barra de navegación inferior (Inicio, Explorar 3D, Estudio, Tutor), temas y resumen en hojas que se deslizan desde abajo, ficha de la estructura como hoja inferior que se cierra arrastrándola, barra de herramientas en una sola fila y gestos táctiles (arrastrar para girar, pellizcar para acercar). Respeta las zonas seguras (muesca, barra de inicio) y se puede añadir a la pantalla de inicio («Añadir a pantalla de inicio» en Safari o Chrome).
 
+## Aplicación de escritorio (Windows)
+
+```
+npm run app:dist
+```
+
+Crea `release/SES Lab 3D Setup 1.0.0.exe` (instalador) y `release/SES Lab 3D 1.0.0.exe` (portable).
+Antes de empaquetar, `scripts/prepare-offline.mjs` descarga e incluye en el instalador todo lo necesario para trabajar sin conexión:
+el motor de OCR con los datos de español e inglés (`public/tesseract`), las fuentes tipográficas y la biblioteca médica base
+(unos 230 artículos de Wikipedia en español, `public/medlib/base.json`). `npm run app` abre la app sin instalar.
+
+## Estudio inteligente
+
+Pestaña **Estudio → Estudio inteligente**. Divide el material en fases (sesiones) y bloques cortos según su extensión,
+dificultad, número de conceptos, tiempo disponible y nivel del usuario. Cada bloque tiene un objetivo, un cronómetro
+(estudio → mini prueba → descanso) basado en la hora real, una mini prueba generada solo con el texto de ese bloque,
+repaso focalizado de los conceptos fallados y repetición espaciada (cajas de Leitner: 1, 3, 7, 14, 30 y 60 días).
+Fundamentos: Dunlosky et al. (2013), Roediger y Karpicke (2006), Cepeda et al. (2008), Rohrer y Taylor (2007),
+Sweller (carga cognitiva) y Albulescu et al. (2022). El progreso se guarda en el equipo (`src/services/storage/persist.ts`,
+único módulo autorizado a persistir datos).
+
+## Tutor y biblioteca médica
+
+El tutor ya no usa IA: responde con fragmentos de tu documento y de la biblioteca médica descargada (biblioteca base +
+artículos guardados), y solo si no encuentra nada consulta Wikipedia en línea.
+
 ## Inteligencia artificial
 
 | Modo | Qué hace | Requisitos |
